@@ -85,7 +85,7 @@
       const raw=data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts.map(p=>p.text||'').join('');
       if(!raw) throw new Error('Gemini returned no plan. Please try a shorter brief.');
       const plan=JSON.parse(raw),rooms=validateAiPlan(plan,width,height);
-      state.width=width;state.height=height;state.rooms=rooms;state.selected=rooms[0].id;render();
+      state.width=width;state.height=height;state.rooms=rooms;state.selected=rooms[0].id;state.entranceRoom=rooms[0].id;render();
       status.innerHTML='<div class="result"><b>Gemini AI created your concept plan.</b><br>'+esc(plan.summary||'AI generated room layout')+'<br>'+rooms.length+' rooms added to the editable drawing.</div><p class="fp-help">Review every room size and position. If the layout is unsuitable, regenerate or edit it. This is not an approved architectural or structural plan.</p>';
       $('fpDrawing').scrollIntoView({behavior:'smooth',block:'center'});
     }catch(error){
@@ -137,7 +137,7 @@
       const w=cellW,h=cellH;
       return {id:nextId++,name:item.name,x:Number(x.toFixed(2)),y:Number(y.toFixed(2)),w:Number(w.toFixed(2)),h:Number(h.toFixed(2)),door:true,window:item.name!=='Bathroom',doorWidth:Math.min(3,w),windowWidth:Math.min(4,w)};
     });
-    state.selected=state.rooms[0]?state.rooms[0].id:null;
+    state.selected=state.rooms[0]?state.rooms[0].id:null;state.entranceRoom=state.selected;
     render();
     const area=state.rooms.reduce((sum,r)=>sum+r.w*r.h,0);
     $('fpAiResult').innerHTML='<div class="result"><b>Concept plan generated.</b> '+state.rooms.length+' spaces arranged inside '+width+' × '+height+' ft plot. Approximate allocated area: '+area.toFixed(1)+' sq ft. Edit individual rooms below, then export PDF or DXF.</div><p class="fp-help">Generated from your written room requirements using an on-device layout rule engine. It is not a connected generative-AI model and does not verify circulation, setbacks, building codes, structure or site conditions.</p>';
@@ -240,7 +240,7 @@
     $('fpDoorSwing').addEventListener('change',e=>update('doorSwing',e.target.value));
     $('fpDoorOffset').addEventListener('change',e=>{r.doorOffset=Math.max(0,Math.min(1,Number(e.target.value)||0));render();});
     $('fpWindowW').addEventListener('change',e=>update('windowWidth',e.target.value));
-    $('fpDelete').addEventListener('click',()=>{state.rooms=state.rooms.filter(x=>x.id!==state.selected);state.selected=state.rooms[0]?state.rooms[0].id:null;if(state.entranceRoom===Number(state.selected))state.entranceRoom=state.selected;render();});
+    $('fpDelete').addEventListener('click',()=>{const removed=state.selected;state.rooms=state.rooms.filter(x=>x.id!==removed);state.selected=state.rooms[0]?state.rooms[0].id:null;if(state.entranceRoom===removed)state.entranceRoom=state.selected;render();});
   }
   function render() {
     $('fpSiteW').value=state.width; $('fpSiteH').value=state.height;
@@ -266,12 +266,12 @@
     downloadFile('Al-Hadi-BuildWise-Floor-Plan.svg',new XMLSerializer().serializeToString(clone),'image/svg+xml;charset=utf-8');
   }
   function exportJson() {
-    const data={app:'Al Hadi BuildWise',formatVersion:1,units:'feet',exportedAt:new Date().toISOString(),site:{width:state.width,height:state.height},rooms:state.rooms};
+    const data={app:'Al Hadi BuildWise',formatVersion:2,units:'feet',exportedAt:new Date().toISOString(),site:{width:state.width,height:state.height,wallThickness:state.wallThickness,entranceSide:state.entranceSide,entranceRoom:state.entranceRoom,routeWidth:state.routeWidth},rooms:state.rooms};
     downloadFile('Al-Hadi-BuildWise-Project.json',JSON.stringify(data,null,2),'application/json;charset=utf-8');
   }
   function exportDxf() {
-    let d='0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n2\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n5\n';
-    [['SITE',7],['WALLS',7],['OPENINGS',3],['DIMENSIONS',2],['LABELS',4]].forEach(v=>{d+='0\nLAYER\n2\n'+v[0]+'\n70\n0\n62\n'+v[1]+'\n6\nCONTINUOUS\n';});
+    let d='0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n2\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n6\n';
+    [['SITE',7],['WALLS',7],['OPENINGS',3],['DIMENSIONS',2],['LABELS',4],['PATH',3]].forEach(v=>{d+='0\nLAYER\n2\n'+v[0]+'\n70\n0\n62\n'+v[1]+'\n6\nCONTINUOUS\n';});
     d+='0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n';
     function line(x1,y1,x2,y2,layer){d+='0\nLINE\n8\n'+layer+'\n10\n'+x1+'\n20\n'+y1+'\n30\n0\n11\n'+x2+'\n21\n'+y2+'\n31\n0\n';}
     function text(x,y,value,height,layer){d+='0\nTEXT\n8\n'+layer+'\n10\n'+x+'\n20\n'+y+'\n30\n0\n40\n'+height+'\n1\n'+String(value).replace(/[\r\n]/g,' ')+'\n';}
