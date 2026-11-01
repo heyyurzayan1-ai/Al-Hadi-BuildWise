@@ -38,11 +38,11 @@
   }
   function selected() { return state.rooms.find(r => r.id === state.selected) || null; }
   function update(key,value) {
+    if (key === 'wallThickness') { const n=Number(value); if(!Number.isFinite(n))return; state.wallThickness=Math.max(0.1,Math.min(1.5,n)); render(); return; }
     const r = selected(); if (!r) return;
     if (key === 'name') r.name = String(value).slice(0,35);
     else if (key === 'door' || key === 'window') r[key] = Boolean(value);
     else if (key === 'doorWidth' || key === 'windowWidth') { const n=Number(value); if(!Number.isFinite(n))return; r[key]=Math.max(1,Math.min(key==='doorWidth'?r.w:r.w,n)); }
-    else if (key === 'wallThickness') { const n=Number(value); if(!Number.isFinite(n))return; state.wallThickness=Math.max(0.1,Math.min(1.5,n)); }
     else {
       const n = Number(value); if (!Number.isFinite(n)) return;
       r[key] = Math.max(0,Math.min(key==='w'?state.width:key==='h'?state.height:10000,n));
