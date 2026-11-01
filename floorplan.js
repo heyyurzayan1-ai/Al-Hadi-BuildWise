@@ -6,6 +6,7 @@
   const state = { width:30, height:24, wallThickness:0.5, rooms:[], selected:null, grid:true };
   const palette = ['#244b68','#315b70','#3b536f','#365f5a','#5a4b70'];
   let nextId = 1;
+  let geminiKey = '';
   function esc(v) {
     return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
@@ -35,6 +36,60 @@
     const y = Math.min(Math.floor(i/2)*Math.max(1,h+1),state.height-h);
     const r = {id:nextId++,name:name,x:x,y:y,w:w,h:h,door:true,window:true,doorWidth:3,windowWidth:4};
     state.rooms.push(r); state.selected = r.id; render();
+  }
+  function validateAiPlan(plan,width,height) {
+    if(!plan||!Array.isArray(plan.rooms)||plan.rooms.length<1||plan.rooms.length>20) throw new Error('AI response did not contain a valid room list (1–20 rooms).');
+    const allowed=['Bedroom','Master bedroom','Bathroom','Kitchen','Lounge','Dining room','Drawing room','Store','Garage','Office','Shop','Staircase','Laundry','Balcony','Corridor'];
+    const rooms=plan.rooms.map((r,i)=>{
+      const x=Number(r.x),y=Number(r.y),w=Number(r.w),h=Number(r.h);
+      if(![x,y,w,h].every(Number.isFinite)||w<3||h<3||x<0||y<0||x+w>width+0.05||y+h>height+0.05) throw new Error('AI produced room dimensions outside the plot. Try a larger plot or simpler brief.');
+      const name=allowed.includes(r.name)?r.name:'Room '+(i+1);
+      return {id:nextId++,name,x:Number(x.toFixed(2)),y:Number(y.toFixed(2)),w:Number(w.toFixed(2)),h:Number(h.toFixed(2)),door:r.door!==false,window:r.window!==false,doorWidth:Math.min(Math.max(2,Number(r.doorWidth)||3),w),windowWidth:Math.min(Math.max(2,Number(r.windowWidth)||4),w)};
+    });
+    for(let i=0;i<rooms.length;i++) for(let k=i+1;k<rooms.length;k++) {
+      const a=rooms[i],b=rooms[k];
+      if(overlap(a,b)) throw new Error('AI layout contains overlapping rooms. Please generate again or simplify your requirements.');
+    }
+    return rooms;
+  }
+  async function generateWithGemini() {
+    const keyInput=$('fpGeminiKey'),brief=$('fpAiBrief').value.trim();
+    const width=Number($('fpSiteW').value),height=Number($('fpSiteH').value);
+    const status=$('fpAiResult');
+    const key=(keyInput&&keyInput.value.trim())||geminiKey;
+    if(!key){status.innerHTML='<div class="result warn">Enter your Gemini API key first. Create one in Google AI Studio.</div>';return;}
+    if(!brief){status.innerHTML='<div class="result warn">Describe the rooms and requirements first.</div>';return;}
+    if(!(width>=10&&height>=10&&width<=200&&height<=200)){status.innerHTML='<div class="result warn">Enter a plot size between 10 and 200 feet.</div>';return;}
+    geminiKey=key;
+    const button=$('fpAiRealGenerate');button.disabled=true;button.textContent='AI is designing…';
+    status.innerHTML='<div class="result">Connecting to Gemini AI and preparing your floor plan…</div>';
+    const schema={
+      type:'OBJECT',
+      properties:{
+        summary:{type:'STRING'},
+        rooms:{type:'ARRAY',items:{type:'OBJECT',properties:{
+          name:{type:'STRING'},x:{type:'NUMBER'},y:{type:'NUMBER'},w:{type:'NUMBER'},h:{type:'NUMBER'},
+          door:{type:'BOOLEAN'},window:{type:'BOOLEAN'},doorWidth:{type:'NUMBER'},windowWidth:{type:'NUMBER'}
+        },required:['name','x','y','w','h','door','window','doorWidth','windowWidth']}}
+      },required:['summary','rooms']
+    };
+    const prompt='You are a careful conceptual residential space planner. Return a practical 2D room layout in feet for a rectangular plot. Plot width='+width+' ft (x axis), plot depth='+height+' ft (y axis). User requirements: '+brief+'. Generate room rectangles with x,y measured from the top-left plot corner, and w,h. Every room must be fully inside plot bounds; no room rectangles may overlap. Use sensible approximate room sizes, include circulation/corridor if requested or needed, and keep a usable entrance/door opening on each room. Place bathrooms sensibly near bedrooms and kitchen near dining if possible. Do not claim code compliance, structural safety, setbacks, ventilation compliance or construction approval. Return 4 to 20 spaces only if the brief needs them; otherwise return the requested spaces. Ensure x>=0,y>=0,w>=3,h>=3,x+w<=plot width,y+h<=plot depth. Door and window widths in feet. Summary should state this is conceptual and mention assumptions.';
+    try{
+      const response=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key='+encodeURIComponent(key),{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:'application/json',responseSchema:schema,temperature:0.35}})
+      });
+      const data=await response.json();
+      if(!response.ok) throw new Error((data.error&&data.error.message)||('Gemini API request failed ('+response.status+'). Check the key, quota and API access.'));
+      const raw=data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts.map(p=>p.text||'').join('');
+      if(!raw) throw new Error('Gemini returned no plan. Please try a shorter brief.');
+      const plan=JSON.parse(raw),rooms=validateAiPlan(plan,width,height);
+      state.width=width;state.height=height;state.rooms=rooms;state.selected=rooms[0].id;render();
+      status.innerHTML='<div class="result"><b>Gemini AI created your concept plan.</b><br>'+esc(plan.summary||'AI generated room layout')+'<br>'+rooms.length+' rooms added to the editable drawing.</div><p class="fp-help">Review every room size and position. If the layout is unsuitable, regenerate or edit it. This is not an approved architectural or structural plan.</p>';
+      $('fpDrawing').scrollIntoView({behavior:'smooth',block:'center'});
+    }catch(error){
+      status.innerHTML='<div class="result warn"><b>AI generation failed:</b> '+esc(error.message||'Unknown error')+'</div><p class="fp-help">Your existing floor plan has not been replaced. Check internet, API key, Gemini API access and quota.</p>';
+    }finally{button.disabled=false;button.textContent='Generate with Gemini AI';}
   }
   function generateFromBrief() {
     const brief=(($('fpAiBrief')&&$('fpAiBrief').value)||'').toLowerCase();
@@ -229,6 +284,8 @@
     if(!$('fpDrawing'))return; load();
     $('fpAddRoom').addEventListener('click',()=>addRoom($('fpRoomType').value));
     $('fpAiGenerate').addEventListener('click',generateFromBrief);
+    $('fpAiRealGenerate').addEventListener('click',generateWithGemini);
+    $('fpGeminiKeySave').addEventListener('click',()=>{geminiKey=$('fpGeminiKey').value.trim();$('fpGeminiKeyStatus').textContent=geminiKey?'Key ready for this browser tab only.':'Enter a valid API key.';});
     $('fpWallThickness').addEventListener('change',e=>update('wallThickness',e.target.value));
     $('fpSiteApply').addEventListener('click',()=>{
       const w=Number($('fpSiteW').value),h=Number($('fpSiteH').value);
