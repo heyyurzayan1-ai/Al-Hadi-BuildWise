@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Al-Hadi BuildWise — Modular v2</title>
+<link rel="stylesheet" href="styles/app-v2.css">
+</head>
+<body>
+<header><div><strong>AL-HADI BUILDWISE</strong><small>Modular workspace · v2</small></div><span id="status">Ready</span></header>
+<main>
+<section class="toolbar">
+<label>Plot width (ft)<input id="plotWidth" type="number" min="5" value="40"></label>
+<label>Plot depth (ft)<input id="plotDepth" type="number" min="5" value="30"></label>
+<button id="newRoom">Add room</button><button id="drawPlan">Refresh plan</button>
+</section>
+<section class="workspace">
+<div class="panel"><h2>Floor plan</h2><div id="canvasWrap"><svg id="plan" role="img" aria-label="Floor plan preview" viewBox="0 0 800 600"></svg></div></div>
+<aside class="panel"><h2>Rooms</h2><div id="roomList"></div><h2>AI layout</h2><p class="hint">Enter your Gemini API key locally. It is used only for this browser request; do not share it.</p>
+<input id="apiKey" type="password" autocomplete="off" placeholder="Gemini API key">
+<textarea id="aiPrompt" rows="4" placeholder="Describe your layout, e.g. 2 bedrooms, kitchen, lounge..."></textarea>
+<button id="generateAI">Generate with AI</button>
+<h2>Exports</h2><div class="exports"><button data-export="json">JSON</button><button data-export="svg">SVG</button><button data-export="dxf">DXF</button><button data-export="bim">BIM JSON</button><button data-export="pdf">PDF / Print</button></div>
+</aside></section>
+</main>
+<script src="core/state-v2.js"></script><script src="editor/drawing-v2.js"></script><script src="exports/exporters-v2.js"></script><script src="ai/gemini-v2.js"></script><script src="core/app-v2.js"></script>
+</body></html>
