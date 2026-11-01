@@ -77,7 +77,7 @@
     try{
       const response=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key='+encodeURIComponent(key),{
         method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:'application/json',responseSchema:schema,temperature:0.35}})
+        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:'application/json',responseJsonSchema:schema,temperature:0.35}})
       });
       const data=await response.json();
       if(!response.ok) throw new Error((data.error&&data.error.message)||('Gemini API request failed ('+response.status+'). Check the key, quota and API access.'));
@@ -286,6 +286,7 @@
     $('fpAiGenerate').addEventListener('click',generateFromBrief);
     $('fpAiRealGenerate').addEventListener('click',generateWithGemini);
     $('fpGeminiKeySave').addEventListener('click',()=>{geminiKey=$('fpGeminiKey').value.trim();$('fpGeminiKeyStatus').textContent=geminiKey?'Key ready for this browser tab only.':'Enter a valid API key.';});
+    $('fpGeminiKeyClear').addEventListener('click',()=>{geminiKey='';$('fpGeminiKey').value='';$('fpGeminiKeyStatus').textContent='API key cleared from this page.';});
     $('fpWallThickness').addEventListener('change',e=>update('wallThickness',e.target.value));
     $('fpSiteApply').addEventListener('click',()=>{
       const w=Number($('fpSiteW').value),h=Number($('fpSiteH').value);
