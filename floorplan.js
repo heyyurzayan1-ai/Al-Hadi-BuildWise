@@ -395,10 +395,12 @@
     downloadFile('Al-Hadi-BuildWise-Shared-Wall-CAD.dxf',d,'application/dxf');
   }
   function exportBim() {
-    const topology=buildWallTopology();\n    const project={
+    const topology=buildWallTopology();
+    const project={
       schema:'AlHadiBuildWise-BIM-1.0',schemaIntent:'OpenBIM-ready conceptual exchange data; not an IFC-certified model',
       project:{name:'Al Hadi BuildWise Project',units:'FEET',createdAt:new Date().toISOString()},
-      site:{width:state.width,depth:state.height,area:state.width*state.height,wallThickness:state.wallThickness,entranceSide:state.entranceSide},\n      buildingElements:{walls:topology.walls.map((w,i)=>({globalId:'AHB-WALL-'+(i+1),ifcType:'IfcWall',kind:w.layer==='WALL-SHARED'?'shared':'external',axis:w.axis,coordinate:w.fixed,start:w.a,end:w.b,thickness:w.thickness,boundingRooms:w.rooms})),openings:topology.openings.map((o,i)=>({globalId:'AHB-OPENING-'+(i+1),ifcType:o.type==='door'?'IfcDoor':'IfcWindow',kind:o.type,wallSide:o.side,axis:o.axis,coordinate:o.fixed,start:o.a,end:o.b,width:o.b-o.a,roomId:o.room.id}))},
+      site:{width:state.width,depth:state.height,area:state.width*state.height,wallThickness:state.wallThickness,entranceSide:state.entranceSide},
+      buildingElements:{walls:topology.walls.map((w,i)=>({globalId:'AHB-WALL-'+(i+1),ifcType:'IfcWall',kind:w.layer==='WALL-SHARED'?'shared':'external',axis:w.axis,coordinate:w.fixed,start:w.a,end:w.b,thickness:w.thickness,boundingRooms:w.rooms})),openings:topology.openings.map((o,i)=>({globalId:'AHB-OPENING-'+(i+1),ifcType:o.type==='door'?'IfcDoor':'IfcWindow',kind:o.type,wallSide:o.side,axis:o.axis,coordinate:o.fixed,start:o.a,end:o.b,width:o.b-o.a,roomId:o.room.id}))},
       storeys:[{name:'Ground Floor',elevation:0,rooms:state.rooms.map(r=>({
         globalId:'AHB-SPACE-'+r.id,ifcType:'IfcSpace',name:r.name,objectType:'Room',
         placement:{x:r.x,y:r.y,z:0},dimensions:{width:r.w,depth:r.h,height:Number(r.ceilingHeight)||10},
