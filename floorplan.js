@@ -272,7 +272,7 @@
       '<div class="row"><div><label>Switch points</label><input id="fpSwitchPoints" type="number" min="0" max="50" value="'+(r.switchPoints||0)+'"></div><div><label>Ventilation</label><select id="fpVentilation">'+['Window / natural','Mechanical exhaust','Supply and exhaust','TBD / professional design'].map(v=>'<option '+((r.ventilation||'Window / natural')===v?'selected':'')+'>'+v+'</option>').join('')+'</select></div></div>'+
       '<div><label>Plumbing / sanitary provision</label><select id="fpPlumbing">'+['None','Wash basin','WC / toilet','Shower','Bath','Kitchen sink','Laundry connection','Multiple / TBD'].map(v=>'<option '+((r.plumbing||'None')===v?'selected':'')+'>'+v+'</option>').join('')+'</select></div>'+
       '<label>Room notes / special requirements</label><textarea id="fpRoomNotes" rows="2">'+esc(r.notes||'')+'</textarea>'+
-      <button type="button" class="fp-danger" id="fpDelete">Delete selected room</button>';
+      '<button type="button" class="fp-danger" id="fpDelete">Delete selected room</button>';
     $('fpName').addEventListener('change',e=>update('name',e.target.value));
     [['fpRoomW','w'],['fpRoomH','h'],['fpX','x'],['fpY','y']].forEach(pair=>$(pair[0]).addEventListener('change',e=>update(pair[1],e.target.value)));
     $('fpDoor').addEventListener('change',e=>update('door',e.target.checked));
