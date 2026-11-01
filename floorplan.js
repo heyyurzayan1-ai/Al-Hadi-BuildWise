@@ -174,53 +174,83 @@
   }
   function draw() {
     const svg = $('fpDrawing'); if (!svg) return;
-    const s = Math.min(25,760/state.width,560/state.height), p=48, w=state.width*s, h=state.height*s;
-    svg.setAttribute('viewBox','0 0 '+(w+2*p)+' '+(h+2*p));
-    let out = '<defs><pattern id="fpGrid" width="'+s+'" height="'+s+'" patternUnits="userSpaceOnUse"><path d="M '+s+' 0 L 0 0 0 '+s+'" fill="none" stroke="#31445e" stroke-width=".7"/></pattern></defs>';
-    if (state.grid) out += '<rect x="'+p+'" y="'+p+'" width="'+w+'" height="'+h+'" fill="url(#fpGrid)"/>';
-    out += '<rect x="'+p+'" y="'+p+'" width="'+w+'" height="'+h+'" fill="none" stroke="#d9e9fa" stroke-width="4"/>';
-    out += '<text x="'+(p+w/2)+'" y="'+(p-18)+'" text-anchor="middle" fill="#b7c9df" font-size="12">'+state.width+' ft</text>';
-    out += '<text x="'+(p-12)+'" y="'+(p+h/2)+'" text-anchor="middle" fill="#b7c9df" font-size="12" transform="rotate(-90 '+(p-12)+' '+(p+h/2)+')">'+state.height+' ft</text>';
-    state.rooms.forEach((r,i) => {
-      const x=p+r.x*s,y=p+r.y*s,rw=r.w*s,rh=r.h*s,chosen=r.id===state.selected;
-      out += '<g data-room="'+r.id+'" style="cursor:pointer">';
-      out += '<rect x="'+x+'" y="'+y+'" width="'+rw+'" height="'+rh+'" fill="'+palette[i%palette.length]+'" fill-opacity=".82" stroke="'+(chosen?'#48d6a5':'#d9e9fa')+'" stroke-width="'+(chosen?4:2.5)+'"/>';
-      out += '<text x="'+(x+rw/2)+'" y="'+(y+rh/2-4)+'" text-anchor="middle" fill="#fff" font-size="'+Math.max(10,Math.min(15,s*.7))+'" pointer-events="none">'+esc(r.name)+'</text>';
-      out += '<text x="'+(x+rw/2)+'" y="'+(y+rh/2+13)+'" text-anchor="middle" fill="#e4edf8" font-size="10" pointer-events="none">'+r.w+' × '+r.h+' ft</text>';
-      const dw=Math.min(r.doorWidth||3,(r.doorSide==='east'||r.doorSide==='west'?r.h:r.w)), ww=Math.min(r.windowWidth||4,(r.windowSide==='east'||r.windowSide==='west'?r.h:r.w));
-      const doff=Math.max(0,Math.min(1,Number(r.doorOffset)||0.5));
-      let dsx=x, dsy=y, dex=x, dey=y, doorCx=x, doorCy=y;
-      if(r.doorSide==='south'){dsx=x+(rw-dw*s)*doff;dsy=y+rh;dex=dsx+dw*s;dey=dsy;doorCx=dsx;doorCy=dsy;}
-      if(r.doorSide==='north'){dsx=x+(rw-dw*s)*doff;dsy=y;dex=dsx+dw*s;dey=dsy;doorCx=dsx;doorCy=dsy;}
-      if(r.doorSide==='east'){dsx=x+rw;dsy=y+(rh-dw*s)*doff;dex=dsx;dey=dsy+dw*s;doorCx=dsx;doorCy=dsy;}
-      if(r.doorSide==='west'){dsx=x;dsy=y+(rh-dw*s)*doff;dex=dsx;dey=dsy+dw*s;doorCx=dsx;doorCy=dsy;}
-      if(r.door){
-        out+='<path d="M '+dsx+' '+dsy+' L '+dex+' '+dey+'" stroke="#07111f" stroke-width="8"/>';
-        const swing=(r.doorSwing||'in')==='in'?1:-1, arc=dw*s;
-        if(r.doorSide==='north'||r.doorSide==='south'){const sign=(r.doorSide==='south'?-1:1)*swing;out+='<path d="M '+dsx+' '+dsy+' L '+dsx+' '+(dsy+sign*arc)+' A '+arc+' '+arc+' 0 0 '+(sign>0?1:0)+' '+dex+' '+dey+'" fill="none" stroke="#ffc66d" stroke-width="2"/>';}
-        else {const sign=(r.doorSide==='east'?-1:1)*swing;out+='<path d="M '+dsx+' '+dsy+' L '+(dsx+sign*arc)+' '+dsy+' A '+arc+' '+arc+' 0 0 '+(sign>0?1:0)+' '+dex+' '+dey+'" fill="none" stroke="#ffc66d" stroke-width="2"/>';}
+    const s=Math.min(25,760/state.width,560/state.height),p=64,w=state.width*s,h=state.height*s;
+    svg.setAttribute('viewBox','0 0 '+(w+2*p)+' '+(h+2*p+42));
+    let out='<rect width="100%" height="100%" fill="#fff"/>';
+    if(state.grid) out+='<defs><pattern id="fpGrid" width="'+s+'" height="'+s+'" patternUnits="userSpaceOnUse"><path d="M '+s+' 0 L 0 0 0 '+s+'" fill="none" stroke="#e9edf2" stroke-width=".7"/></pattern></defs><rect x="'+p+'" y="'+p+'" width="'+w+'" height="'+h+'" fill="url(#fpGrid)"/>';
+    out+='<rect x="'+p+'" y="'+p+'" width="'+w+'" height="'+h+'" fill="none" stroke="#111827" stroke-width="5"/>';
+    out+='<text x="'+(p+w/2)+'" y="'+(p-25)+'" text-anchor="middle" fill="#111827" font-size="13" font-weight="700">'+state.width+"'-0\""+'</text>';
+    out+='<text x="'+(p-22)+'" y="'+(p+h/2)+'" text-anchor="middle" fill="#111827" font-size="13" transform="rotate(-90 '+(p-22)+' '+(p+h/2)+')">'+state.height+"'-0\""+'</text>';
+    function rect(x,y,ww,hh,rx=1){return '<rect x="'+x+'" y="'+y+'" width="'+ww+'" height="'+hh+'" rx="'+rx+'" fill="#fff" stroke="#555" stroke-width="1.4"/>';}
+    function line(x1,y1,x2,y2,sw=1.4,color='#555'){return '<path d="M '+x1+' '+y1+' L '+x2+' '+y2+'" fill="none" stroke="'+color+'" stroke-width="'+sw+'"/>';}
+    function furniture(r,x,y,rw,rh){
+      const n=r.name.toLowerCase(),cx=x+rw/2,cy=y+rh/2,unit=Math.max(1.5,s*.12);
+      let z='';
+      if(n.includes('bedroom')){
+        const bw=Math.min(rw*.48,s*5.4),bh=Math.min(rh*.55,s*6.5),bx=x+rw*.12,by=y+rh*.2;
+        z+=rect(bx,by,bw,bh,2)+rect(bx+2,by+2,bw/2-3,bh*.19,3)+rect(bx+bw/2+1,by+2,bw/2-3,bh*.19,3);
+        z+=line(bx,by+bh*.25,bx+bw,by+bh*.25,1,'#888');
+        const wx=x+rw*.68,wy=y+rh*.22;
+        z+=rect(wx,wy,Math.min(rw*.2,s*2.2),Math.min(rh*.42,s*4),1);
+        z+='<text x="'+(wx+Math.min(rw*.2,s*2.2)/2)+'" y="'+(wy+Math.min(rh*.42,s*4)/2+3)+'" font-size="7" text-anchor="middle" fill="#777">W</text>';
+      } else if(n.includes('bath')){
+        const fx=x+rw*.12,fy=y+rh*.12;
+        z+=rect(fx,fy,Math.min(rw*.38,s*2.8),Math.min(rh*.24,s*1.6),2);
+        z+='<ellipse cx="'+(x+rw*.72)+'" cy="'+(y+rh*.28)+'" rx="'+Math.min(rw*.11,s*.8)+'" ry="'+Math.min(rh*.09,s*.65)+'" fill="none" stroke="#555" stroke-width="1.5"/>';
+        z+=line(x+rw*.62,y+rh*.42,x+rw*.82,y+rh*.42,1.2);
+        z+=rect(x+rw*.12,y+rh*.62,Math.min(rw*.24,s*1.6),Math.min(rh*.18,s*1.1),4);
+        z+='<circle cx="'+(x+rw*.24)+'" cy="'+(y+rh*.71)+'" r="2" fill="none" stroke="#555"/>';
+      } else if(n.includes('kitchen')){
+        const t=Math.max(5,Math.min(s*1.05,rw*.18,rh*.18));
+        z+=rect(x+rw*.08,y+rh*.08,rw*.84,t,1)+rect(x+rw*.08,y+rh*.08,t,rh*.78,1);
+        z+=rect(x+rw*.2,y+rh*.13,t*.72,t*.55,1);
+        z+='<circle cx="'+(x+rw*.72)+'" cy="'+(y+rh*.14)+'" r="'+Math.max(2,t*.18)+'" fill="none" stroke="#555"/><circle cx="'+(x+rw*.82)+'" cy="'+(y+rh*.14)+'" r="'+Math.max(2,t*.18)+'" fill="none" stroke="#555"/>';
+        z+=rect(cx-t*1.2,y+rh*.55,t*2.4,t*1.5,1);
+      } else if(n.includes('lounge')||n.includes('drawing')||n.includes('living')){
+        const sw=Math.min(rw*.62,s*7),sh=Math.min(rh*.18,s*1.7);
+        z+=rect(cx-sw/2,y+rh*.16,sw,sh,5)+line(cx-sw/2+sw*.33,y+rh*.16,cx-sw/2+sw*.33,y+rh*.16+sh,1);
+        z+=rect(x+rw*.1,cy-sh*.45,Math.min(rw*.16,s*1.7),sh*2.2,5)+rect(x+rw*.74,cy-sh*.45,Math.min(rw*.16,s*1.7),sh*2.2,5);
+        z+=rect(cx-sw*.25,cy+rh*.15,sw*.5,sh*.8,2);
+      } else if(n.includes('dining')){
+        z+=rect(cx-rw*.22,cy-rh*.13,rw*.44,rh*.26,2);
+        [[-.3,0],[.3,0],[0,-.32],[0,.32]].forEach(a=>z+=rect(cx+rw*a[0]-unit,cy+rh*a[1]-unit,unit*2,unit*2,2));
+      } else if(n.includes('garage')||n.includes('porch')){
+        const cw=Math.min(rw*.42,s*4.2),ch=Math.min(rh*.72,s*7.5),carX=cx-cw/2,carY=cy-ch/2;
+        z+=rect(carX,carY,cw,ch,Math.min(cw*.22,8));
+        z+=rect(carX+cw*.14,carY+ch*.16,cw*.72,ch*.24,4)+rect(carX+cw*.14,carY+ch*.59,cw*.72,ch*.2,4);
+        z+=line(carX,carY+ch*.38,carX+cw,carY+ch*.38,1);
+        z+=line(carX,carY+ch*.52,carX+cw,carY+ch*.52,1);
+      } else if(n.includes('stair')){
+        const steps=8,vertical=rw>rh;
+        for(let k=0;k<=steps;k++){if(vertical)z+=line(x+rw*.15+k*rw*.7/steps,y+rh*.2,x+rw*.15+k*rw*.7/steps,y+rh*.8,1);else z+=line(x+rw*.2,y+rh*.15+k*rh*.7/steps,x+rw*.8,y+rh*.15+k*rh*.7/steps,1);}
+        z+='<text x="'+cx+'" y="'+cy+'" font-size="9" fill="#555" text-anchor="middle">UP ↑</text>';
+      } else if(n.includes('store')||n.includes('office')){
+        z+=rect(x+rw*.12,y+rh*.12,rw*.28,Math.min(rh*.18,s*1.3),1)+rect(x+rw*.58,y+rh*.35,rw*.28,Math.min(rh*.18,s*1.3),1);
       }
-      if(r.window){
-        let wx=x,wy=y,wx2=x,wy2=y;
-        if(r.windowSide==='north'||r.windowSide==='south'){wy=r.windowSide==='north'?y:y+rh;wx=x+(rw-ww*s)/2;wx2=wx+ww*s;wy2=wy;}
-        else {wx=r.windowSide==='west'?x:x+rw;wy=y+(rh-ww*s)/2;wy2=wy+ww*s;wx2=wx;}
-        out+='<path d="M '+wx+' '+wy+' L '+wx2+' '+wy2+'" stroke="#07111f" stroke-width="8"/><path d="M '+wx+' '+wy+' L '+wx2+' '+wy2+'" stroke="#48d6d8" stroke-width="3"/>';
-      }
-      out += '</g>';
-    });
-    const entry=state.rooms.find(r=>r.id===state.entranceRoom);
-    if(state.showRoute&&entry&&entry.door){
-      const dw=Math.min(entry.doorWidth||3,(entry.doorSide==='east'||entry.doorSide==='west'?entry.h:entry.w)),off=Math.max(0,Math.min(1,Number(entry.doorOffset)||0.5));
-      let ex=p+(entry.x+(entry.doorSide==='east'?entry.w:entry.doorSide==='west'?0:entry.w*off))*s;
-      let ey=p+(entry.y+(entry.doorSide==='south'?entry.h:entry.doorSide==='north'?0:entry.h*off))*s;
-      if(entry.doorSide==='north'||entry.doorSide==='south')ex=p+(entry.x+entry.w*off)*s;
-      if(state.entranceSide==='south')out+='<path d="M '+(p+w/2)+' '+(p+h+24)+' L '+(p+w/2)+' '+(ey+18)+' L '+ex+' '+ey+'" fill="none" stroke="#48d6a5" stroke-width="'+Math.max(3,state.routeWidth*s*.35)+'" stroke-dasharray="8 5"/>';
-      if(state.entranceSide==='north')out+='<path d="M '+(p+w/2)+' '+(p-24)+' L '+(p+w/2)+' '+(ey-18)+' L '+ex+' '+ey+'" fill="none" stroke="#48d6a5" stroke-width="'+Math.max(3,state.routeWidth*s*.35)+'" stroke-dasharray="8 5"/>';
-      if(state.entranceSide==='west')out+='<path d="M '+(p-24)+' '+(p+h/2)+' L '+(ex-18)+' '+(p+h/2)+' L '+ex+' '+ey+'" fill="none" stroke="#48d6a5" stroke-width="'+Math.max(3,state.routeWidth*s*.35)+'" stroke-dasharray="8 5"/>';
-      if(state.entranceSide==='east')out+='<path d="M '+(p+w+24)+' '+(p+h/2)+' L '+(ex+18)+' '+(p+h/2)+' L '+ex+' '+ey+'" fill="none" stroke="#48d6a5" stroke-width="'+Math.max(3,state.routeWidth*s*.35)+'" stroke-dasharray="8 5"/>';
-      out+='<text x="'+(p+w/2)+'" y="'+(state.entranceSide==='south'?p+h+16:state.entranceSide==='north'?p-29:p+h/2-8)+'" text-anchor="middle" fill="#48d6a5" font-size="11">MAIN ENTRY / ACCESS PATH</text>';
+      return z;
     }
-    out += '<text x="'+p+'" y="'+(p+h+43)+'" fill="#91a7c2" font-size="11">Concept plan • dimensions in feet • door swing shown in amber • windows in cyan</text>';
+    state.rooms.forEach((r,i)=>{
+      const x=p+r.x*s,y=p+r.y*s,rw=r.w*s,rh=r.h*s,chosen=r.id===state.selected;
+      out+='<g data-room="'+r.id+'" style="cursor:pointer">';
+      out+='<rect x="'+x+'" y="'+y+'" width="'+rw+'" height="'+rh+'" fill="#fff" stroke="'+(chosen?'#087f5b':'#111827')+'" stroke-width="'+(chosen?4:3)+'"/>';
+      out+=furniture(r,x,y,rw,rh);
+      const dw=Math.min(r.doorWidth||3,(r.doorSide==='east'||r.doorSide==='west'?r.h:r.w)),ww=Math.min(r.windowWidth||4,(r.windowSide==='east'||r.windowSide==='west'?r.h:r.w)),doff=Math.max(0,Math.min(1,Number(r.doorOffset)||.5));
+      let dsx=x,dsy=y,dex=x,dey=y;
+      if(r.doorSide==='south'){dsx=x+(rw-dw*s)*doff;dsy=y+rh;dex=dsx+dw*s;dey=dsy;}
+      if(r.doorSide==='north'){dsx=x+(rw-dw*s)*doff;dsy=y;dex=dsx+dw*s;dey=dsy;}
+      if(r.doorSide==='east'){dsx=x+rw;dsy=y+(rh-dw*s)*doff;dex=dsx;dey=dsy+dw*s;}
+      if(r.doorSide==='west'){dsx=x;dsy=y+(rh-dw*s)*doff;dex=dsx;dey=dsy+dw*s;}
+      if(r.door){out+='<path d="M '+dsx+' '+dsy+' L '+dex+' '+dey+'" stroke="#fff" stroke-width="7"/>';
+        const arc=dw*s,sign=(r.doorSide==='south'?-1:r.doorSide==='north'?1:r.doorSide==='east'?-1:1)*(r.doorSwing==='out'?-1:1);
+        if(r.doorSide==='north'||r.doorSide==='south')out+='<path d="M '+dsx+' '+dsy+' L '+dsx+' '+(dsy+sign*arc)+' A '+arc+' '+arc+' 0 0 '+(sign>0?1:0)+' '+dex+' '+dey+'" fill="none" stroke="#555" stroke-width="1.3"/>';
+        else out+='<path d="M '+dsx+' '+dsy+' L '+(dsx+sign*arc)+' '+dsy+' A '+arc+' '+arc+' 0 0 '+(sign>0?1:0)+' '+dex+' '+dey+'" fill="none" stroke="#555" stroke-width="1.3"/>';
+      }
+      if(r.window){let wx=x,wy=y,wx2=x,wy2=y;if(r.windowSide==='north'||r.windowSide==='south'){wy=r.windowSide==='north'?y:y+rh;wx=x+(rw-ww*s)/2;wx2=wx+ww*s;wy2=wy;}else{wx=r.windowSide==='west'?x:x+rw;wy=y+(rh-ww*s)/2;wy2=wy+ww*s;wx2=wx;}out+='<path d="M '+wx+' '+wy+' L '+wx2+' '+wy2+'" stroke="#fff" stroke-width="8"/><path d="M '+wx+' '+wy+' L '+wx2+' '+wy2+'" stroke="#111827" stroke-width="2"/><path d="M '+wx+' '+(wy-2)+' L '+wx2+' '+(wy2-2)+'" stroke="#777" stroke-width="1"/>';}
+      out+='<text x="'+(x+rw/2)+'" y="'+(y+rh*.88)+'" text-anchor="middle" fill="#111827" font-size="'+Math.max(8,Math.min(12,s*.58))+'" font-weight="700" pointer-events="none">'+esc(r.name.toUpperCase())+'</text>';
+      out+='<text x="'+(x+rw/2)+'" y="'+(y+rh*.88+12)+'" text-anchor="middle" fill="#444" font-size="9" pointer-events="none">'+r.w+"'-"+Math.round((r.w%1)*12)+'\" × '+r.h+"'-"+Math.round((r.h%1)*12)+'\"'+'</text>';
+      out+='</g>';
+    });
+    out+='<text x="'+p+'" y="'+(p+h+28)+'" fill="#333" font-size="10">AL HADI BUILDWISE • ARCHITECTURAL CONCEPT PLAN • DIMENSIONS IN FEET</text>';
     svg.innerHTML=out;
     svg.querySelectorAll('[data-room]').forEach(g=>g.addEventListener('click',()=>{state.selected=Number(g.getAttribute('data-room'));render();}));
   }
