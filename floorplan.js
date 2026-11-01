@@ -351,13 +351,13 @@
   }
   function exportDxf() {
     const topo=buildWallTopology();
-    let d='0\\nSECTION\\n2\\nHEADER\\n9\\n$INSUNITS\\n70\\n2\\n9\\n$LUNITS\\n70\\n2\\n0\\nENDSEC\\n0\\nSECTION\\n2\\nTABLES\\n0\\nTABLE\\n2\\nLAYER\\n70\\n12\\n';
-    [['SITE',7],['WALL-EXTERNAL',7],['WALL-SHARED',8],['WALL-FACES',8],['DOORS',3],['WINDOWS',4],['FURNITURE',6],['FIXTURES',5],['ROOM-TAGS',2],['DIMENSIONS',1],['ANNOTATIONS',7],['GRID',9]].forEach(v=>{d+='0\\nLAYER\\n2\\n'+v[0]+'\\n70\\n0\\n62\\n'+v[1]+'\\n6\\nCONTINUOUS\\n';});
-    d+='0\\nENDTAB\\n0\\nENDSEC\\n0\\nSECTION\\n2\\nENTITIES\\n';
-    function line(x1,y1,x2,y2,layer){d+='0\\nLINE\\n8\\n'+layer+'\\n10\\n'+x1+'\\n20\\n'+y1+'\\n30\\n0\\n11\\n'+x2+'\\n21\\n'+y2+'\\n31\\n0\\n';}
-    function txt(x,y,v,size,layer){d+='0\\nTEXT\\n8\\n'+layer+'\\n10\\n'+x+'\\n20\\n'+y+'\\n30\\n0\\n40\\n'+size+'\\n1\\n'+String(v).replace(/[\\r\\n]/g,' ')+'\\n';}
+    let d='0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n2\n9\n$LUNITS\n70\n2\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n12\n';
+    [['SITE',7],['WALL-EXTERNAL',7],['WALL-SHARED',8],['WALL-FACES',8],['DOORS',3],['WINDOWS',4],['FURNITURE',6],['FIXTURES',5],['ROOM-TAGS',2],['DIMENSIONS',1],['ANNOTATIONS',7],['GRID',9]].forEach(v=>{d+='0\nLAYER\n2\n'+v[0]+'\n70\n0\n62\n'+v[1]+'\n6\nCONTINUOUS\n';});
+    d+='0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n';
+    function line(x1,y1,x2,y2,layer){d+='0\nLINE\n8\n'+layer+'\n10\n'+x1+'\n20\n'+y1+'\n30\n0\n11\n'+x2+'\n21\n'+y2+'\n31\n0\n';}
+    function txt(x,y,v,size,layer){d+='0\nTEXT\n8\n'+layer+'\n10\n'+x+'\n20\n'+y+'\n30\n0\n40\n'+size+'\n1\n'+String(v).replace(/[\r\n]/g,' ')+'\n';}
     function rect(x,y,w,h,layer){line(x,y,x+w,y,layer);line(x+w,y,x+w,y+h,layer);line(x+w,y+h,x,y+h,layer);line(x,y+h,x,y,layer);}
-    function circle(x,y,r,layer){d+='0\\nCIRCLE\\n8\\n'+layer+'\\n10\\n'+x+'\\n20\\n'+y+'\\n30\\n0\\n40\\n'+r+'\\n';}
+    function circle(x,y,r,layer){d+='0\nCIRCLE\n8\n'+layer+'\n10\n'+x+'\n20\n'+y+'\n30\n0\n40\n'+r+'\n';}
     function dimH(x1,x2,y,label){line(x1,y,x2,y,'DIMENSIONS');line(x1,y-.12,x1,y+.12,'DIMENSIONS');line(x2,y-.12,x2,y+.12,'DIMENSIONS');txt((x1+x2)/2-.35,y+.18,label,.28,'DIMENSIONS');}
     function dimV(y1,y2,x,label){line(x,y1,x,y2,'DIMENSIONS');line(x-.12,y1,x+.12,y1,'DIMENSIONS');line(x-.12,y2,x+.12,y2,'DIMENSIONS');txt(x+.18,(y1+y2)/2,label,.28,'DIMENSIONS');}
     rect(0,0,state.width,state.height,'SITE');dimH(0,state.width,-1.25,state.width+"'-0\\"");dimV(0,state.height,state.width+1.25,state.height+"'-0\\"");
@@ -391,7 +391,7 @@
     });
     txt(0,-2.2,'AL HADI BUILDWISE | SHARED-WALL AWARE CAD DXF | UNITS: FEET',.35,'ANNOTATIONS');
     txt(0,-2.75,'Concept drawing only - verify dimensions, wall joins and openings before construction',.22,'ANNOTATIONS');
-    d+='0\\nENDSEC\\n0\\nEOF\\n';
+    d+='0\nENDSEC\n0\nEOF\n';
     downloadFile('Al-Hadi-BuildWise-Shared-Wall-CAD.dxf',d,'application/dxf');
   }
   function exportBim() {
