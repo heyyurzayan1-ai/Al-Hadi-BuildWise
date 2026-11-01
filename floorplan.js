@@ -449,6 +449,7 @@
     $('fpExportPdf').addEventListener('click',exportPdf);
     $('fpExportDxf').addEventListener('click',exportDxf);
     $('fpExportJson').addEventListener('click',exportJson);
+    $('fpExportBim').addEventListener('click',exportBim);
     $('fpReset').addEventListener('click',()=>{
       if(!confirm('Start a new blank plan? This clears the saved plan on this device.'))return;
       state.rooms=[];state.selected=null;state.entranceRoom=null;nextId=1;render();
