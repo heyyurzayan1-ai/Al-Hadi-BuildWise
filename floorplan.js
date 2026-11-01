@@ -100,11 +100,42 @@
     $('fpArea').textContent=(state.width*state.height).toFixed(1)+' sq ft site area';
     save();
   }
+  function downloadFile(name,content,type) {
+    const blob=new Blob([content],{type:type}),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+  }
   function exportSvg() {
     const clone=$('fpDrawing').cloneNode(true); clone.setAttribute('xmlns','http://www.w3.org/2000/svg');
-    const blob=new Blob([new XMLSerializer().serializeToString(clone)],{type:'image/svg+xml;charset=utf-8'});
-    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Al-Hadi-BuildWise-Floor-Plan.svg';
-    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+    downloadFile('Al-Hadi-BuildWise-Floor-Plan.svg',new XMLSerializer().serializeToString(clone),'image/svg+xml;charset=utf-8');
+  }
+  function exportJson() {
+    const data={app:'Al Hadi BuildWise',formatVersion:1,units:'feet',exportedAt:new Date().toISOString(),site:{width:state.width,height:state.height},rooms:state.rooms};
+    downloadFile('Al-Hadi-BuildWise-Project.json',JSON.stringify(data,null,2),'application/json;charset=utf-8');
+  }
+  function dxfPair(code,value){return code+'\\n'+value+'\\n';}
+  function exportDxf() {
+    let d='0\\nSECTION\\n2\\nHEADER\\n9\\n$INSUNITS\\n70\\n2\\n0\\nENDSEC\\n0\\nSECTION\\n2\\nENTITIES\\n';
+    function rect(x,y,w,h,layer){
+      d+='0\\nLWPOLYLINE\\n8\\n'+layer+'\\n90\\n4\\n70\\n1\\n';
+      [[x,y],[x+w,y],[x+w,y+h],[x,y+h]].forEach(p=>{d+='10\\n'+p[0]+'\\n20\\n'+p[1]+'\\n';});
+    }
+    function label(x,y,value,layer){
+      d+='0\\nTEXT\\n8\\n'+layer+'\\n10\\n'+x+'\\n20\\n'+y+'\\n40\\n0.7\\n1\\n'+String(value).replace(/[\\r\\n]/g,' ')+'\\n';
+    }
+    rect(0,0,state.width,state.height,'SITE');
+    state.rooms.forEach(r=>{rect(r.x,r.y,r.w,r.h,'ROOMS');label(r.x+r.w/2,r.y+r.h/2,r.name+' '+r.w+'x'+r.h+' ft','LABELS');});
+    d+='0\\nENDSEC\\n0\\nEOF\\n';
+    downloadFile('Al-Hadi-BuildWise-Floor-Plan.dxf',d,'application/dxf');
+  }
+  function exportPdf() {
+    const svg=$('fpDrawing').cloneNode(true);svg.setAttribute('xmlns','http://www.w3.org/2000/svg');
+    const svgText=new XMLSerializer().serializeToString(svg);
+    const rows=state.rooms.map(r=>'<tr><td>'+esc(r.name)+'</td><td>'+r.w+' × '+r.h+' ft</td><td>'+r.x+', '+r.y+' ft</td><td>'+(r.w*r.h).toFixed(1)+' sq ft</td></tr>').join('');
+    const w=window.open('','_blank');
+    if(!w){alert('Allow pop-ups for this site, then try PDF export again.');return;}
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Al Hadi BuildWise Floor Plan</title><style>body{font:14px Arial,sans-serif;color:#172334;margin:28px}h1{font-size:22px}svg{width:100%;max-height:650px}table{width:100%;border-collapse:collapse;margin-top:18px}td,th{border:1px solid #bbb;padding:7px;text-align:left}.note{font-size:11px;color:#555;margin-top:18px}@media print{button{display:none}}</style></head><body><h1>Al Hadi BuildWise — Floor Plan</h1><p>Site: '+state.width+' × '+state.height+' ft · Area: '+(state.width*state.height).toFixed(1)+' sq ft</p>'+svgText+'<h2>Room schedule</h2><table><thead><tr><th>Room</th><th>Size</th><th>Position</th><th>Area</th></tr></thead><tbody>'+rows+'</tbody></table><p class="note">Concept layout only. Not a construction-ready, code-approved or structural drawing. Have all plans reviewed by qualified local professionals.</p><button onclick="window.print()">Print / Save as PDF</button><script>window.onload=function(){setTimeout(function(){window.print()},400)};<\\/script></body></html>');
+    w.document.close();
   }
   function init() {
     if(!$('fpDrawing'))return; load();
@@ -115,7 +146,7 @@
       state.width=w;state.height=h;render();
     });
     $('fpGridToggle').addEventListener('change',e=>{state.grid=e.target.checked;render();});
-    $('fpExport').addEventListener('click',exportSvg);
+    $('fpExport').addEventListener('click',exportSvg);\n    $('fpExportPdf').addEventListener('click',exportPdf);\n    $('fpExportDxf').addEventListener('click',exportDxf);\n    $('fpExportJson').addEventListener('click',exportJson);
     $('fpReset').addEventListener('click',()=>{
       if(!confirm('Start a new blank plan? This clears the saved plan on this device.'))return;
       state.rooms=[];state.selected=null;nextId=1;render();
