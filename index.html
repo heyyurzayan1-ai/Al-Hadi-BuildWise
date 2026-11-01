@@ -3,16 +3,71 @@
 <style>
 :root{--bg:#0a1220;--card:#142238;--line:#2c405d;--txt:#edf4ff;--muted:#a9b8ce;--green:#48d6a5;--gold:#ffc66d}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#09111e,#14243a);color:var(--txt);font:15px/1.6 system-ui,Arial,sans-serif}header{padding:26px max(18px,calc((100% - 1100px)/2));border-bottom:1px solid var(--line)}.brand{color:var(--green);font-weight:800;letter-spacing:2px;font-size:13px}h1{font-size:clamp(28px,5vw,44px);margin:8px 0}.muted{color:var(--muted)}main{max-width:1100px;margin:24px auto;padding:0 16px 50px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}button{background:#1a2c45;border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}.tabs button.active,.primary{background:var(--green);color:#06251b;border:0}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}h2{font-size:19px;margin:0 0 12px}h3{font-size:15px;color:var(--green)}label{display:block;color:var(--muted);font-size:13px;margin:10px 0 5px}input,select,textarea{width:100%;padding:11px;background:#0a1628;border:1px solid var(--line);border-radius:9px;color:var(--txt);font:inherit}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}textarea{min-height:75px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stats div{padding:10px;background:#0a1628;border:1px solid var(--line);border-radius:9px}.stats b{display:block;color:var(--green);font-size:20px}.result{padding:12px;border-left:3px solid var(--green);background:#102b3b;border-radius:8px;margin:10px 0}.warn{border-color:var(--gold);background:#302719}.plan{background:#091526;border:1px solid var(--line);border-radius:12px;padding:12px}svg{width:100%;height:auto}.hidden{display:none}.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.tiles div{padding:12px;background:#0a1628;border:1px solid var(--line);border-radius:9px}.small{font-size:12px}.notice{font-size:12px;color:var(--gold)}footer{text-align:center;color:var(--muted);font-size:12px;margin-top:25px}@media(max-width:720px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+
+/* Interactive floor-plan editor */
+.fp-shell{background:#091526;border:1px solid var(--line);border-radius:13px;padding:13px}
+.fp-tools{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fp-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.fp-toolbar button,.fp-room-chip{font-size:13px;padding:9px 11px}
+.fp-canvas{background:#07111f;border:1px solid var(--line);border-radius:12px;padding:8px;overflow:hidden}
+#fpDrawing{display:block;width:100%;height:auto;min-height:230px;touch-action:pan-y}
+.fp-room-list{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+.fp-room-chip{background:#0b192b;border:1px solid var(--line)}
+.fp-room-chip.selected{border-color:var(--green);color:var(--green)}
+.fp-room-chip small{color:var(--muted);margin-left:5px}
+.fp-check{display:flex;align-items:center;gap:8px;background:#0a1628;border:1px solid var(--line);border-radius:9px;padding:8px}
+.fp-check input{width:auto;accent-color:var(--green)}
+.fp-danger{background:#40252b;border-color:#79404a;color:#ffdce0;margin-top:10px}
+.fp-help{font-size:12px;color:var(--muted)}
+#fpStatus{color:var(--green);font-size:12px}
+@media(max-width:600px){.fp-tools{grid-template-columns:1fr}.fp-canvas{padding:4px}#fpDrawing{min-height:200px}}
+
 </style></head><body>
 <header><div class="brand">AL HADI • BUILDWISE</div><h1>AI Construction & Design Studio</h1><p class="muted">From a single room to a complete building — a concept workspace for 2D plans, 3D design, estimating, construction guidance and contractor workflows.</p></header>
 <main><nav class="tabs"><button class="active" onclick="tab('workspace',this)">Project workspace</button><button onclick="tab('features',this)">Facilities</button><button onclick="tab('contractor',this)">Contractor mode</button><button onclick="tab('roadmap',this)">Roadmap</button></nav>
 <section id="workspace"><div class="grid"><div class="card"><h2>Project inputs</h2><label>Project type</label><select id="kind"><option>Room</option><option>Shop</option><option>House</option><option>Office</option><option>Commercial building</option></select><div class="row"><div><label>Length (feet)</label><input id="l" type="number" min="1" value="20"></div><div><label>Width (feet)</label><input id="w" type="number" min="1" value="15"></div></div><div class="row"><div><label>Height (feet)</label><input id="h" type="number" min="1" value="10"></div><div><label>City</label><select id="city"><option>Gujranwala</option><option>Sialkot</option><option>Lahore</option><option>Islamabad</option><option>Karachi</option><option>Other Pakistan city</option></select></div></div><label>Requirements / instructions</label><textarea id="needs">Two bedrooms, one bathroom, kitchen, good daylight and affordable construction.</textarea><button class="primary" id="analyseBtn" type="button">Generate concept analysis</button><p class="notice">Prototype only: this is not a real AI engineering assessment or construction approval.</p></div>
 <div class="card"><h2>2D concept preview</h2><div class="plan"><svg viewBox="0 0 360 250"><rect x="42" y="24" width="276" height="190" fill="#193650" stroke="#9cc6ed" stroke-width="4"/><path d="M42 150 A45 45 0 0 1 87 195" fill="none" stroke="#ffc66d" stroke-width="5"/><path d="M140 24 H220" stroke="#48d6a5" stroke-width="7"/><text x="180" y="118" fill="white" text-anchor="middle" font-size="16">Concept room</text><text x="180" y="239" fill="#a9b8ce" text-anchor="middle" font-size="11">Illustrative only — not to scale</text></svg></div><p class="muted small">Planned next: editable walls, doors, windows, stairs, furniture, dimensions and true drawing scale.</p></div></div>
+
+<div class="card" id="floorplanEditor">
+  <h2>Interactive 2D Floor Plan Designer</h2>
+  <p class="muted small">Create a simple room layout, edit measurements, and export your drawing. Designed for touch screens.</p>
+  <div class="fp-shell">
+    <h3>1. Plot / site dimensions</h3>
+    <div class="fp-tools">
+      <div><label>Site width (feet)</label><input id="fpSiteW" type="number" min="5" max="200" value="30"></div>
+      <div><label>Site length (feet)</label><input id="fpSiteH" type="number" min="5" max="200" value="24"></div>
+    </div>
+    <div class="fp-toolbar">
+      <button type="button" class="primary" id="fpSiteApply">Apply site size</button>
+      <label class="fp-check"><input type="checkbox" id="fpGridToggle" checked> Show grid</label>
+    </div>
+    <p id="fpArea" class="muted small">720 sq ft site area</p>
+    <h3>2. Add rooms</h3>
+    <div class="fp-tools">
+      <div><label>Room type</label><select id="fpRoomType"><option>Bedroom</option><option>Master bedroom</option><option>Lounge</option><option>Kitchen</option><option>Bathroom</option><option>Dining room</option><option>Drawing room</option><option>Store</option><option>Office</option><option>Shop</option></select></div>
+      <div style="display:flex;align-items:end"><button type="button" class="primary" id="fpAddRoom" style="width:100%">+ Add room</button></div>
+    </div>
+    <div class="fp-room-list" id="fpRoomList"></div>
+    <h3>3. Floor plan drawing</h3>
+    <div class="fp-canvas"><svg id="fpDrawing" role="img" aria-label="Interactive floor plan drawing" viewBox="0 0 800 600"></svg></div>
+    <p class="fp-help">Tap a room in the drawing or room list to select it. Green outline shows the selected room. Grid squares represent approximately one foot.</p>
+    <h3>4. Edit selected room</h3>
+    <div id="fpInspector"><p class="muted small">Select a room to edit it.</p></div>
+    <div id="fpWarnings"></div>
+    <div class="fp-toolbar">
+      <button type="button" class="primary" id="fpExport">Export floor plan (SVG)</button>
+      <button type="button" id="fpReset">New blank plan</button>
+      <span id="fpStatus">Changes save on this device</span>
+    </div>
+    <p class="notice">Concept design only. This editor does not create approved architectural or structural drawings. A qualified architect/engineer must review construction plans.</p>
+  </div>
+</div>
+
 <div class="card" id="analysis"><h2>Initial analysis</h2><p class="muted">Enter dimensions and press Generate concept analysis.</p></div></section>
 <section id="features" class="hidden"><div class="card"><h2>Planned platform facilities</h2><div class="tiles"><div><b>2D CAD</b><br><span class="muted small">Plans, elevations, sections, dimensions and scales</span></div><div><b>3D modeling</b><br><span class="muted small">Walls, openings, materials and walkthroughs</span></div><div><b>AI image assistant</b><br><span class="muted small">Interpret site photos; verify dimensions on site</span></div><div><b>Electrical planning</b><br><span class="muted small">Lighting, switches, load and wiring routes</span></div><div><b>Plumbing planning</b><br><span class="muted small">Water supply, drainage and sanitary layout</span></div><div><b>Material estimator</b><br><span class="muted small">Bricks, cement, steel, sand, aggregate and tiles</span></div><div><b>Pakistan cost engine</b><br><span class="muted small">City/date/quality based supplier quotations</span></div><div><b>Safety & compliance</b><br><span class="muted small">Risk checklist and local code references</span></div><div><b>Contractor workspace</b><br><span class="muted small">BOQ, labor, schedule, site progress and approvals</span></div><div><b>Export center</b><br><span class="muted small">PDF, DXF, IFC, STEP and supported 3D formats</span></div></div></div></section>
 <section id="contractor" class="hidden"><div class="card"><h2>Contractor workspace</h2><ol><li>Create a client project and record verified site measurements.</li><li>Generate concept layouts and compare design alternatives.</li><li>Send structural and technical items for licensed professional review.</li><li>Prepare BOQ, material estimate, labor and project schedule.</li><li>Record site photos, expenses, daily progress and variations.</li><li>Share client reports and final handover documents.</li></ol></div></section>
 <section id="roadmap" class="hidden"><div class="card"><h2>Initial 3–4 month MVP roadmap</h2><p><b>Weeks 1–2:</b> requirements, data model, dimensions, units and scale.</p><p><b>Weeks 3–5:</b> editable 2D plans and PDF/DXF export.</p><p><b>Weeks 6–8:</b> basic 3D walls, doors, windows and camera view.</p><p><b>Weeks 9–10:</b> starter BOQ and dated city-wise Pakistan price data.</p><p><b>Weeks 11–12:</b> AI assistant, photo workflow, safety checklist and contractor dashboard.</p><p><b>Weeks 13–16:</b> testing, feedback, fixes and pilot.</p><div class="result warn">This is an MVP plan, not a promise that a complete professional architecture, structural and mechanical CAD suite can be finished in four months.</div></div><div class="card"><h2>Safety rules</h2><ul><li>AI must not approve foundations, columns, beams or load-bearing walls without a qualified structural engineer.</li><li>Underground wiring and plumbing require site survey and applicable local standards.</li><li>Show material prices with date, city, quality and supplier source; never invent live rates.</li><li>Final structural, electrical, fire and building-code approval must come from qualified professionals.</li></ul></div></section>
-<footer>Al Hadi BuildWise · Concept prototype v0.2 · Pakistan-first construction workflow</footer></main>
+<footer>Al Hadi BuildWise · Interactive prototype v0.3 · Pakistan-first construction workflow</footer></main>
 <script>
 (function(){
   function byId(id){return document.getElementById(id);}
@@ -52,4 +107,4 @@
     tabButtons.forEach(function(button,index){button.addEventListener('click',function(){showTab(tabIds[index],button);});});
   });
 })();
-</script></body></html>
+</script><script src="floorplan.js" defer></script></body></html>
