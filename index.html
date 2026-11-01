@@ -19,7 +19,7 @@
 .fp-check input{width:auto;accent-color:var(--green)}
 .fp-danger{background:#40252b;border-color:#79404a;color:#ffdce0;margin-top:10px}
 .fp-help{font-size:12px;color:var(--muted)}
-#fpStatus{color:var(--green);font-size:12px}
+#fpStatus{color:var(--green);font-size:12px}.fp-table-wrap{overflow-x:auto}.fp-schedule{border-collapse:collapse;min-width:850px;width:100%;font-size:12px}.fp-schedule th,.fp-schedule td{border:1px solid var(--line);padding:7px;text-align:left}.fp-schedule th{background:#132840;color:#48d6a5}.fp-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.fp-stats span{padding:8px;background:#0a1628;border:1px solid var(--line);border-radius:8px;font-size:12px}.fp-stats b{color:#48d6a5}.fp-schedules{margin-top:14px}
 @media(max-width:600px){.fp-tools{grid-template-columns:1fr}.fp-canvas{padding:4px}#fpDrawing{min-height:200px}}
 
 </style></head><body>
@@ -74,6 +74,7 @@
     <h3>5. Edit selected room</h3>
     <div id="fpInspector"><p class="muted small">Select a room to edit it.</p></div>
     <div id="fpWarnings"></div>
+    <div id="fpSchedules" class="fp-schedules"></div>
     <div class="fp-toolbar">
       <button type="button" class="primary" id="fpExport">Export SVG</button>
       <button type="button" id="fpExportPdf">Export PDF</button>
