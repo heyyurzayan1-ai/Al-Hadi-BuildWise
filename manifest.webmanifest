@@ -1,0 +1,12 @@
+{
+  "name": "Al Hadi BuildWise",
+  "short_name": "BuildWise",
+  "description": "Mobile-first architecture and construction planning workspace.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1220",
+  "theme_color": "#0a1220",
+  "lang": "en"
+}
