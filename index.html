@@ -26,7 +26,7 @@
 <header><div class="brand">AL HADI • BUILDWISE</div><h1>AI Construction & Design Studio</h1><p class="muted">From a single room to a complete building — a concept workspace for 2D plans, 3D design, estimating, construction guidance and contractor workflows.</p></header>
 <main><nav class="tabs"><button class="active" onclick="tab('workspace',this)">Project workspace</button><button onclick="tab('features',this)">Facilities</button><button onclick="tab('contractor',this)">Contractor mode</button><button onclick="tab('roadmap',this)">Roadmap</button></nav>
 <section id="workspace"><div class="grid"><div class="card"><h2>Project inputs</h2><label>Project type</label><select id="kind"><option>Room</option><option>Shop</option><option>House</option><option>Office</option><option>Commercial building</option></select><div class="row"><div><label>Length (feet)</label><input id="l" type="number" min="1" value="20"></div><div><label>Width (feet)</label><input id="w" type="number" min="1" value="15"></div></div><div class="row"><div><label>Height (feet)</label><input id="h" type="number" min="1" value="10"></div><div><label>City</label><select id="city"><option>Gujranwala</option><option>Sialkot</option><option>Lahore</option><option>Islamabad</option><option>Karachi</option><option>Other Pakistan city</option></select></div></div><label>Requirements / instructions</label><textarea id="needs">Two bedrooms, one bathroom, kitchen, good daylight and affordable construction.</textarea><button class="primary" id="analyseBtn" type="button">Generate concept analysis</button><p class="notice">Prototype only: this is not a real AI engineering assessment or construction approval.</p></div>
-<div class="card"><h2>2D concept preview</h2><div class="plan"><svg viewBox="0 0 360 250"><rect x="42" y="24" width="276" height="190" fill="#193650" stroke="#9cc6ed" stroke-width="4"/><path d="M42 150 A45 45 0 0 1 87 195" fill="none" stroke="#ffc66d" stroke-width="5"/><path d="M140 24 H220" stroke="#48d6a5" stroke-width="7"/><text x="180" y="118" fill="white" text-anchor="middle" font-size="16">Concept room</text><text x="180" y="239" fill="#a9b8ce" text-anchor="middle" font-size="11">Illustrative only — not to scale</text></svg></div><p class="muted small">CAD drawing now includes automatic bed, sofa, kitchen, bathroom, dining, storage, staircase and vehicle symbols. Select rooms to edit dimensions, doors and windows.</p></div></div>
+<div class="card"><h2>2D concept preview</h2><div class="plan"><svg viewBox="0 0 360 250"><rect x="42" y="24" width="276" height="190" fill="#193650" stroke="#9cc6ed" stroke-width="4"/><path d="M42 150 A45 45 0 0 1 87 195" fill="none" stroke="#ffc66d" stroke-width="5"/><path d="M140 24 H220" stroke="#48d6a5" stroke-width="7"/><text x="180" y="118" fill="white" text-anchor="middle" font-size="16">Concept room</text><text x="180" y="239" fill="#a9b8ce" text-anchor="middle" font-size="11">Illustrative only — not to scale</text></svg></div><p class="muted small">CAD drawing includes furnished rooms, fixtures, room dimensions and shared-wall-aware DXF export. BIM data export includes room spaces, wall segments and door/window opening records.</p></div></div>
 
 <div class="card" id="floorplanEditor">
   <h2>Gemini AI Floor Plan Generator & 2D Designer</h2>
@@ -78,9 +78,9 @@
     <div class="fp-toolbar">
       <button type="button" class="primary" id="fpExport">Export SVG</button>
       <button type="button" id="fpExportPdf">Export PDF</button>
-      <button type="button" id="fpExportDxf">Export CAD DXF</button>
+      <button type="button" id="fpExportDxf">Export shared-wall CAD DXF</button>
       <button type="button" id="fpExportJson">Export project JSON</button>
-      <button type="button" id="fpExportBim">Export BIM data</button>
+      <button type="button" id="fpExportBim">Export BIM model data</button>
       <button type="button" id="fpReset">New blank plan</button>
       <span id="fpStatus">Changes save on this device</span>
     </div>
