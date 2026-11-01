@@ -1,0 +1,1 @@
+(function(){const state={width:40,depth:30,rooms:[{id:1,name:"Living room",x:0,y:0,w:18,h:16},{id:2,name:"Bedroom",x:18,y:0,w:12,h:14},{id:3,name:"Kitchen",x:18,y:14,w:12,h:10}],nextId:4};window.BuildWiseState=state;})();
