@@ -1,4 +1,4 @@
-const CACHE = 'al-hadi-buildwise-v8';
+const CACHE = 'al-hadi-buildwise-v9';
 const CORE = ['./', './index.html', './floorplan.js', './manifest.webmanifest'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE)).then(() => self.skipWaiting()));
