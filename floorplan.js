@@ -19,7 +19,7 @@
       const d = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (d && Array.isArray(d.rooms)) {
         state.width = Number(d.width) || 30; state.height = Number(d.height) || 24; state.wallThickness = Number(d.wallThickness) || 0.5;
-        state.rooms = d.rooms.map(r=>Object.assign({doorSide:'south',windowSide:'north',doorOffset:0.5,doorSwing:'in'},r)); state.selected = d.selected || (d.rooms[0] && d.rooms[0].id) || null; state.entranceSide=d.entranceSide||'south'; state.entranceRoom=d.entranceRoom||state.rooms[0]?.id||null; state.showRoute=d.showRoute!==false; state.routeWidth=Number(d.routeWidth)||3;
+        state.rooms = d.rooms.map(r=>Object.assign({doorSide:'south',windowSide:'north',doorOffset:0.5,doorSwing:'in',ceilingHeight:10,floorFinish:'Ceramic tile',wallFinish:'Paint / plaster',ceilingFinish:'Painted ceiling',lightingPoints:1,socketPoints:2,switchPoints:1,ventilation:'Window / natural',plumbing:'None',notes:''},r)); state.selected = d.selected || (d.rooms[0] && d.rooms[0].id) || null; state.entranceSide=d.entranceSide||'south'; state.entranceRoom=d.entranceRoom||state.rooms[0]?.id||null; state.showRoute=d.showRoute!==false; state.routeWidth=Number(d.routeWidth)||3;
         nextId = d.rooms.reduce((m,r) => Math.max(m,Number(r.id)||0),0)+1;
       }
     } catch(e) {}
@@ -34,7 +34,7 @@
     const d = defaults(name), w = Math.min(d[0],state.width), h = Math.min(d[1],state.height);
     const i = state.rooms.length, x = Math.min((i%2)*Math.max(1,Math.floor((state.width-w)/2)),state.width-w);
     const y = Math.min(Math.floor(i/2)*Math.max(1,h+1),state.height-h);
-    const r = {id:nextId++,name:name,x:x,y:y,w:w,h:h,door:true,window:true,doorWidth:3,windowWidth:4,doorSide:'south',windowSide:'north',doorOffset:0.5,doorSwing:'in'};
+    const r = {id:nextId++,name:name,x:x,y:y,w:w,h:h,door:true,window:true,doorWidth:3,windowWidth:4,doorSide:'south',windowSide:'north',doorOffset:0.5,doorSwing:'in',ceilingHeight:10,floorFinish:'Ceramic tile',wallFinish:'Paint / plaster',ceilingFinish:'Painted ceiling',lightingPoints:1,socketPoints:2,switchPoints:1,ventilation:'Window / natural',plumbing:'None',notes:''};
     if(!state.entranceRoom) state.entranceRoom=r.id;
     state.rooms.push(r); state.selected = r.id; render();
   }
@@ -155,6 +155,8 @@
     else if (key === 'door' || key === 'window') r[key] = Boolean(value);
     else if (key === 'doorSide' || key === 'windowSide') { if(['north','south','east','west'].includes(value))r[key]=value; }
     else if (key === 'doorSwing') { if(['in','out'].includes(value))r[key]=value; }
+    else if (['floorFinish','wallFinish','ceilingFinish','ventilation','plumbing','notes'].includes(key)) r[key]=String(value).slice(0,300);
+    else if (['ceilingHeight','lightingPoints','socketPoints','switchPoints'].includes(key)) { const n=Number(value);if(!Number.isFinite(n)||n<0)return;r[key]=Math.min(key==='ceilingHeight'?30:50,n); }
     else if (key === 'doorWidth' || key === 'windowWidth') { const n=Number(value); if(!Number.isFinite(n))return; r[key]=Math.max(1,Math.min(key==='doorWidth'?r.w:r.w,n)); }
     else {
       const n = Number(value); if (!Number.isFinite(n)) return;
@@ -229,7 +231,13 @@
       '<div class="row"><div><label>Room depth (ft)</label><input id="fpRoomH" type="number" min="1" step=".5" value="'+r.h+'"></div><div><label>Position X / Y (ft)</label><div class="row"><input aria-label="Position X" id="fpX" type="number" min="0" step=".5" value="'+r.x+'"><input aria-label="Position Y" id="fpY" type="number" min="0" step=".5" value="'+r.y+'"></div></div></div>'+
       '<div class="row"><label class="fp-check"><input id="fpDoor" type="checkbox" '+(r.door?'checked':'')+'> Show door opening</label><label class="fp-check"><input id="fpWindow" type="checkbox" '+(r.window?'checked':'')+'> Show window opening</label></div>'+
       '<div class="row"><div><label>Door width (ft)</label><input id="fpDoorW" type="number" min="1" step="0.5" value="'+(r.doorWidth||3)+'"></div><div><label>Window width (ft)</label><input id="fpWindowW" type="number" min="1" step="0.5" value="'+(r.windowWidth||4)+'"></div></div>'+
-      '<div class="row"><div><label>Door on which wall?</label><select id="fpDoorSide"><option value="north" '+((r.doorSide||'south')==='north'?'selected':'')+'>North / top</option><option value="south" '+((r.doorSide||'south')==='south'?'selected':'')+'>South / bottom</option><option value="east" '+((r.doorSide||'south')==='east'?'selected':'')+'>East / right</option><option value="west" '+((r.doorSide||'south')==='west'?'selected':'')+'>West / left</option></select></div><div><label>Window on which wall?</label><select id="fpWindowSide"><option value="north" '+((r.windowSide||'north')==='north'?'selected':'')+'>North / top</option><option value="south" '+((r.windowSide||'north')==='south'?'selected':'')+'>South / bottom</option><option value="east" '+((r.windowSide||'north')==='east'?'selected':'')+'>East / right</option><option value="west" '+((r.windowSide||'north')==='west'?'selected':'')+'>West / left</option></select></div></div><div class="row"><div><label>Door swing</label><select id="fpDoorSwing"><option value="in" '+((r.doorSwing||'in')==='in'?'selected':'')+'>Opens inward</option><option value="out" '+(r.doorSwing==='out'?'selected':'')+'>Opens outward</option></select></div><div><label>Door position along wall (0–1)</label><input id="fpDoorOffset" type="number" min="0" max="1" step=".05" value="'+(r.doorOffset===undefined?0.5:r.doorOffset)+'"></div></div><button type="button" class="fp-danger" id="fpDelete">Delete selected room</button>';
+      '<div class="row"><div><label>Door on which wall?</label><select id="fpDoorSide"><option value="north" '+((r.doorSide||'south')==='north'?'selected':'')+'>North / top</option><option value="south" '+((r.doorSide||'south')==='south'?'selected':'')+'>South / bottom</option><option value="east" '+((r.doorSide||'south')==='east'?'selected':'')+'>East / right</option><option value="west" '+((r.doorSide||'south')==='west'?'selected':'')+'>West / left</option></select></div><div><label>Window on which wall?</label><select id="fpWindowSide"><option value="north" '+((r.windowSide||'north')==='north'?'selected':'')+'>North / top</option><option value="south" '+((r.windowSide||'north')==='south'?'selected':'')+'>South / bottom</option><option value="east" '+((r.windowSide||'north')==='east'?'selected':'')+'>East / right</option><option value="west" '+((r.windowSide||'north')==='west'?'selected':'')+'>West / left</option></select></div></div><div class="row"><div><label>Door swing</label><select id="fpDoorSwing"><option value="in" '+((r.doorSwing||'in')==='in'?'selected':'')+'>Opens inward</option><option value="out" '+(r.doorSwing==='out'?'selected':'')+'>Opens outward</option></select></div><div><label>Door position along wall (0–1)</label><input id="fpDoorOffset" type="number" min="0" max="1" step=".05" value="'+(r.doorOffset===undefined?0.5:r.doorOffset)+'"></div></div><h4>Room specification</h4><div class="row"><div><label>Ceiling height (ft)</label><input id="fpCeilingHeight" type="number" min="7" max="30" step=".5" value="'+(r.ceilingHeight||10)+'"></div><div><label>Floor finish</label><select id="fpFloorFinish">'+['Ceramic tile','Porcelain tile','Marble','Granite','Wood / laminate','Concrete','Other / TBD'].map(v=>'<option '+((r.floorFinish||'Ceramic tile')===v?'selected':'')+'>'+v+'</option>').join('')+'</select></div></div>'+
+      '<div class="row"><div><label>Wall finish</label><select id="fpWallFinish">'+['Paint / plaster','Tile','Exposed brick','Wall panel','Other / TBD'].map(v=>'<option '+((r.wallFinish||'Paint / plaster')===v?'selected':'')+'>'+v+'</option>').join('')+'</select></div><div><label>Ceiling finish</label><select id="fpCeilingFinish">'+['Painted ceiling','Gypsum board','False ceiling','Exposed concrete','Other / TBD'].map(v=>'<option '+((r.ceilingFinish||'Painted ceiling')===v?'selected':'')+'>'+v+'</option>').join('')+'</select></div></div>'+
+      '<div class="row"><div><label>Lighting points</label><input id="fpLightingPoints" type="number" min="0" max="50" value="'+(r.lightingPoints||0)+'"></div><div><label>Socket points</label><input id="fpSocketPoints" type="number" min="0" max="50" value="'+(r.socketPoints||0)+'"></div></div>'+
+      '<div class="row"><div><label>Switch points</label><input id="fpSwitchPoints" type="number" min="0" max="50" value="'+(r.switchPoints||0)+'"></div><div><label>Ventilation</label><select id="fpVentilation">'+['Window / natural','Mechanical exhaust','Supply and exhaust','TBD / professional design'].map(v=>'<option '+((r.ventilation||'Window / natural')===v?'selected':'')+'>'+v+'</option>').join('')+'</select></div></div>'+
+      '<div><label>Plumbing / sanitary provision</label><select id="fpPlumbing">'+['None','Wash basin','WC / toilet','Shower','Bath','Kitchen sink','Laundry connection','Multiple / TBD'].map(v=>'<option '+((r.plumbing||'None')===v?'selected':'')+'>'+v+'</option>').join('')+'</select></div>'+
+      '<label>Room notes / special requirements</label><textarea id="fpRoomNotes" rows="2">'+esc(r.notes||'')+'</textarea>'+
+      <button type="button" class="fp-danger" id="fpDelete">Delete selected room</button>';
     $('fpName').addEventListener('change',e=>update('name',e.target.value));
     [['fpRoomW','w'],['fpRoomH','h'],['fpX','x'],['fpY','y']].forEach(pair=>$(pair[0]).addEventListener('change',e=>update(pair[1],e.target.value)));
     $('fpDoor').addEventListener('change',e=>update('door',e.target.checked));
@@ -239,6 +247,8 @@
     $('fpWindowSide').addEventListener('change',e=>update('windowSide',e.target.value));
     $('fpDoorSwing').addEventListener('change',e=>update('doorSwing',e.target.value));
     $('fpDoorOffset').addEventListener('change',e=>{r.doorOffset=Math.max(0,Math.min(1,Number(e.target.value)||0));render();});
+    ['fpCeilingHeight','fpLightingPoints','fpSocketPoints','fpSwitchPoints'].forEach((id)=>$(id).addEventListener('change',e=>update(({fpCeilingHeight:'ceilingHeight',fpLightingPoints:'lightingPoints',fpSocketPoints:'socketPoints',fpSwitchPoints:'switchPoints'})[id],e.target.value)));
+    [['fpFloorFinish','floorFinish'],['fpWallFinish','wallFinish'],['fpCeilingFinish','ceilingFinish'],['fpVentilation','ventilation'],['fpPlumbing','plumbing'],['fpRoomNotes','notes']].forEach(pair=>$(pair[0]).addEventListener('change',e=>update(pair[1],e.target.value)));
     $('fpWindowW').addEventListener('change',e=>update('windowWidth',e.target.value));
     $('fpDelete').addEventListener('click',()=>{const removed=state.selected;state.rooms=state.rooms.filter(x=>x.id!==removed);state.selected=state.rooms[0]?state.rooms[0].id:null;if(state.entranceRoom===removed)state.entranceRoom=state.selected;render();});
   }
@@ -254,6 +264,13 @@
     state.rooms.forEach((a,i)=>state.rooms.slice(i+1).forEach(b=>{if(overlap(a,b))collisions.push(a.name+' and '+b.name);}));
     $('fpWarnings').innerHTML=collisions.length?'<div class="result warn"><b>Layout warning:</b> Overlapping rooms: '+collisions.map(esc).join(', ')+'. Move them apart.</div>':'<div class="result">No room overlaps detected by this basic 2D check.</div>';
     $('fpArea').textContent=(state.width*state.height).toFixed(1)+' sq ft site area';
+    const schedule=$('fpSchedules');
+    if(schedule){
+      const total=state.rooms.reduce((n,r)=>n+r.w*r.h,0);
+      const counts=state.rooms.reduce((a,r)=>{if(r.door)a.doors++;if(r.window)a.windows++;a.lights+=Number(r.lightingPoints)||0;a.sockets+=Number(r.socketPoints)||0;a.switches+=Number(r.switchPoints)||0;return a;},{doors:0,windows:0,lights:0,sockets:0,switches:0});
+      schedule.innerHTML='<h4>Live room & building schedules</h4><div class="fp-table-wrap"><table class="fp-schedule"><thead><tr><th>Room</th><th>Size (ft)</th><th>Area (sq ft)</th><th>Ceiling</th><th>Floor</th><th>Wall finish</th><th>Door</th><th>Window</th><th>Lights</th><th>Sockets</th><th>Plumbing</th></tr></thead><tbody>'+state.rooms.map(r=>'<tr><td>'+esc(r.name)+'</td><td>'+r.w+' × '+r.h+'</td><td>'+(r.w*r.h).toFixed(1)+'</td><td>'+(r.ceilingHeight||10)+' ft</td><td>'+esc(r.floorFinish||'TBD')+'</td><td>'+esc(r.wallFinish||'TBD')+'</td><td>'+(r.door?(r.doorWidth||3)+' ft':'None')+'</td><td>'+(r.window?(r.windowWidth||4)+' ft':'None')+'</td><td>'+(r.lightingPoints||0)+'</td><td>'+(r.socketPoints||0)+'</td><td>'+esc(r.plumbing||'None')+'</td></tr>').join('')+'</tbody></table></div><div class="fp-stats"><span><b>'+total.toFixed(1)+'</b> sq ft allocated</span><span><b>'+counts.doors+'</b> doors</span><span><b>'+counts.windows+'</b> windows</span><span><b>'+counts.lights+'</b> lights</span><span><b>'+counts.sockets+'</b> sockets</span><span><b>'+counts.switches+'</b> switches</span></div><p class="fp-help">Schedules update from room properties. Electrical point counts are placeholders, not circuit/load design.</p>';
+    }
+
     save();
   }
   function downloadFile(name,content,type) {
@@ -266,7 +283,7 @@
     downloadFile('Al-Hadi-BuildWise-Floor-Plan.svg',new XMLSerializer().serializeToString(clone),'image/svg+xml;charset=utf-8');
   }
   function exportJson() {
-    const data={app:'Al Hadi BuildWise',formatVersion:2,units:'feet',exportedAt:new Date().toISOString(),site:{width:state.width,height:state.height,wallThickness:state.wallThickness,entranceSide:state.entranceSide,entranceRoom:state.entranceRoom,routeWidth:state.routeWidth},rooms:state.rooms};
+    const data={app:'Al Hadi BuildWise',formatVersion:3,units:'feet',exportedAt:new Date().toISOString(),site:{width:state.width,height:state.height,wallThickness:state.wallThickness,entranceSide:state.entranceSide,entranceRoom:state.entranceRoom,routeWidth:state.routeWidth},rooms:state.rooms,documentation:{note:'Concept specifications only; verify with licensed professionals.'}};
     downloadFile('Al-Hadi-BuildWise-Project.json',JSON.stringify(data,null,2),'application/json;charset=utf-8');
   }
   function exportDxf() {
