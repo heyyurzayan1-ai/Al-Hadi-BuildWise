@@ -59,8 +59,7 @@
       const key=spec.keys.find(k=>brief.includes(k));
       let count=0;
       if(key){
-        const escaped=key.replace(/[.*+?^{}()|[\]\\]/g,'\\  function selected() { return state.rooms.find(r => r.id === state.selected) || null; }');
-        const match=brief.match(new RegExp('(?:^|\\\\b)(\\\\d+)\\\\s*(?:'+escaped+'s?)(?:\\\\b)'));
+        const match=brief.match(new RegExp('(?:^|\\b)(\\d+)\\s*'+key+'s?(?:\\b)'));
         count=match?Math.min(6,Number(match[1])):1;
       } else if(spec.fallback && !brief.trim()) count=spec.fallback;
       else if(spec.fallback && (spec.name==='Bedroom'||spec.name==='Bathroom'||spec.name==='Kitchen'||spec.name==='Lounge')) {
