@@ -3,7 +3,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const KEY = 'alhadi-buildwise-floorplan-v1';
-  const state = { width:30, height:24, wallThickness:0.5, rooms:[], selected:null, grid:true };
+  const state = { width:30, height:24, wallThickness:0.5, rooms:[], selected:null, grid:true, entranceSide:'south', entranceRoom:null, showRoute:true, routeWidth:3 };
   const palette = ['#244b68','#315b70','#3b536f','#365f5a','#5a4b70'];
   let nextId = 1;
   let geminiKey = '';
@@ -19,7 +19,7 @@
       const d = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (d && Array.isArray(d.rooms)) {
         state.width = Number(d.width) || 30; state.height = Number(d.height) || 24; state.wallThickness = Number(d.wallThickness) || 0.5;
-        state.rooms = d.rooms; state.selected = d.selected || (d.rooms[0] && d.rooms[0].id) || null;
+        state.rooms = d.rooms.map(r=>Object.assign({doorSide:'south',windowSide:'north',doorOffset:0.5,doorSwing:'in'},r)); state.selected = d.selected || (d.rooms[0] && d.rooms[0].id) || null; state.entranceSide=d.entranceSide||'south'; state.entranceRoom=d.entranceRoom||state.rooms[0]?.id||null; state.showRoute=d.showRoute!==false; state.routeWidth=Number(d.routeWidth)||3;
         nextId = d.rooms.reduce((m,r) => Math.max(m,Number(r.id)||0),0)+1;
       }
     } catch(e) {}
@@ -34,7 +34,8 @@
     const d = defaults(name), w = Math.min(d[0],state.width), h = Math.min(d[1],state.height);
     const i = state.rooms.length, x = Math.min((i%2)*Math.max(1,Math.floor((state.width-w)/2)),state.width-w);
     const y = Math.min(Math.floor(i/2)*Math.max(1,h+1),state.height-h);
-    const r = {id:nextId++,name:name,x:x,y:y,w:w,h:h,door:true,window:true,doorWidth:3,windowWidth:4};
+    const r = {id:nextId++,name:name,x:x,y:y,w:w,h:h,door:true,window:true,doorWidth:3,windowWidth:4,doorSide:'south',windowSide:'north',doorOffset:0.5,doorSwing:'in'};
+    if(!state.entranceRoom) state.entranceRoom=r.id;
     state.rooms.push(r); state.selected = r.id; render();
   }
   function validateAiPlan(plan,width,height) {
@@ -44,7 +45,7 @@
       const x=Number(r.x),y=Number(r.y),w=Number(r.w),h=Number(r.h);
       if(![x,y,w,h].every(Number.isFinite)||w<3||h<3||x<0||y<0||x+w>width+0.05||y+h>height+0.05) throw new Error('AI produced room dimensions outside the plot. Try a larger plot or simpler brief.');
       const name=allowed.includes(r.name)?r.name:'Room '+(i+1);
-      return {id:nextId++,name,x:Number(x.toFixed(2)),y:Number(y.toFixed(2)),w:Number(w.toFixed(2)),h:Number(h.toFixed(2)),door:r.door!==false,window:r.window!==false,doorWidth:Math.min(Math.max(2,Number(r.doorWidth)||3),w),windowWidth:Math.min(Math.max(2,Number(r.windowWidth)||4),w)};
+      return {id:nextId++,name,x:Number(x.toFixed(2)),y:Number(y.toFixed(2)),w:Number(w.toFixed(2)),h:Number(h.toFixed(2)),door:r.door!==false,window:r.window!==false,doorWidth:Math.min(Math.max(2,Number(r.doorWidth)||3),w),windowWidth:Math.min(Math.max(2,Number(r.windowWidth)||4),w),doorSide:['north','south','east','west'].includes(r.doorSide)?r.doorSide:'south',windowSide:['north','south','east','west'].includes(r.windowSide)?r.windowSide:'north',doorOffset:0.5,doorSwing:'in'};
     });
     for(let i=0;i<rooms.length;i++) for(let k=i+1;k<rooms.length;k++) {
       const a=rooms[i],b=rooms[k];
@@ -145,9 +146,15 @@
   function selected() { return state.rooms.find(r => r.id === state.selected) || null; }
   function update(key,value) {
     if (key === 'wallThickness') { const n=Number(value); if(!Number.isFinite(n))return; state.wallThickness=Math.max(0.1,Math.min(1.5,n)); render(); return; }
+    if (key === 'entranceSide') { if(['north','south','east','west'].includes(value))state.entranceSide=value; render(); return; }
+    if (key === 'entranceRoom') { state.entranceRoom=Number(value)||null; render(); return; }
+    if (key === 'showRoute') { state.showRoute=!!value; render(); return; }
+    if (key === 'routeWidth') { const n=Number(value); if(Number.isFinite(n))state.routeWidth=Math.max(2,Math.min(8,n)); render(); return; }
     const r = selected(); if (!r) return;
     if (key === 'name') r.name = String(value).slice(0,35);
     else if (key === 'door' || key === 'window') r[key] = Boolean(value);
+    else if (key === 'doorSide' || key === 'windowSide') { if(['north','south','east','west'].includes(value))r[key]=value; }
+    else if (key === 'doorSwing') { if(['in','out'].includes(value))r[key]=value; }
     else if (key === 'doorWidth' || key === 'windowWidth') { const n=Number(value); if(!Number.isFinite(n))return; r[key]=Math.max(1,Math.min(key==='doorWidth'?r.w:r.w,n)); }
     else {
       const n = Number(value); if (!Number.isFinite(n)) return;
@@ -173,11 +180,40 @@
       out += '<rect x="'+x+'" y="'+y+'" width="'+rw+'" height="'+rh+'" fill="'+palette[i%palette.length]+'" fill-opacity=".82" stroke="'+(chosen?'#48d6a5':'#d9e9fa')+'" stroke-width="'+(chosen?4:2.5)+'"/>';
       out += '<text x="'+(x+rw/2)+'" y="'+(y+rh/2-4)+'" text-anchor="middle" fill="#fff" font-size="'+Math.max(10,Math.min(15,s*.7))+'" pointer-events="none">'+esc(r.name)+'</text>';
       out += '<text x="'+(x+rw/2)+'" y="'+(y+rh/2+13)+'" text-anchor="middle" fill="#e4edf8" font-size="10" pointer-events="none">'+r.w+' × '+r.h+' ft</text>';
-      if(r.door) out += '<path d="M '+(x+(rw-Math.min(r.doorWidth||3,r.w)) * s/2)+' '+(y+rh)+' h '+(Math.min(r.doorWidth||3,r.w)*s)+'" stroke="#ffc66d" stroke-width="6"/>';
-      if(r.window) out += '<path d="M '+(x+(rw-Math.min(r.windowWidth||4,r.w)) * s/2)+' '+y+' h '+(Math.min(r.windowWidth||4,r.w)*s)+'" stroke="#48d6d8" stroke-width="6"/>'
+      const dw=Math.min(r.doorWidth||3,(r.doorSide==='east'||r.doorSide==='west'?r.h:r.w)), ww=Math.min(r.windowWidth||4,(r.windowSide==='east'||r.windowSide==='west'?r.h:r.w));
+      const doff=Math.max(0,Math.min(1,Number(r.doorOffset)||0.5));
+      let dsx=x, dsy=y, dex=x, dey=y, doorCx=x, doorCy=y;
+      if(r.doorSide==='south'){dsx=x+(rw-dw*s)*doff;dsy=y+rh;dex=dsx+dw*s;dey=dsy;doorCx=dsx;doorCy=dsy;}
+      if(r.doorSide==='north'){dsx=x+(rw-dw*s)*doff;dsy=y;dex=dsx+dw*s;dey=dsy;doorCx=dsx;doorCy=dsy;}
+      if(r.doorSide==='east'){dsx=x+rw;dsy=y+(rh-dw*s)*doff;dex=dsx;dey=dsy+dw*s;doorCx=dsx;doorCy=dsy;}
+      if(r.doorSide==='west'){dsx=x;dsy=y+(rh-dw*s)*doff;dex=dsx;dey=dsy+dw*s;doorCx=dsx;doorCy=dsy;}
+      if(r.door){
+        out+='<path d="M '+dsx+' '+dsy+' L '+dex+' '+dey+'" stroke="#07111f" stroke-width="8"/>';
+        const swing=(r.doorSwing||'in')==='in'?1:-1, arc=dw*s;
+        if(r.doorSide==='north'||r.doorSide==='south'){const sign=(r.doorSide==='south'?-1:1)*swing;out+='<path d="M '+dsx+' '+dsy+' L '+dsx+' '+(dsy+sign*arc)+' A '+arc+' '+arc+' 0 0 '+(sign>0?1:0)+' '+dex+' '+dey+'" fill="none" stroke="#ffc66d" stroke-width="2"/>';}
+        else {const sign=(r.doorSide==='east'?-1:1)*swing;out+='<path d="M '+dsx+' '+dsy+' L '+(dsx+sign*arc)+' '+dsy+' A '+arc+' '+arc+' 0 0 '+(sign>0?1:0)+' '+dex+' '+dey+'" fill="none" stroke="#ffc66d" stroke-width="2"/>';}
+      }
+      if(r.window){
+        let wx=x,wy=y,wx2=x,wy2=y;
+        if(r.windowSide==='north'||r.windowSide==='south'){wy=r.windowSide==='north'?y:y+rh;wx=x+(rw-ww*s)/2;wx2=wx+ww*s;wy2=wy;}
+        else {wx=r.windowSide==='west'?x:x+rw;wy=y+(rh-ww*s)/2;wy2=wy+ww*s;wx2=wx;}
+        out+='<path d="M '+wx+' '+wy+' L '+wx2+' '+wy2+'" stroke="#07111f" stroke-width="8"/><path d="M '+wx+' '+wy+' L '+wx2+' '+wy2+'" stroke="#48d6d8" stroke-width="3"/>';
+      }
       out += '</g>';
     });
-    out += '<text x="'+p+'" y="'+(p+h+27)+'" fill="#91a7c2" font-size="11">Concept layout • grid unit = 1 foot • not a construction drawing</text>';
+    const entry=state.rooms.find(r=>r.id===state.entranceRoom);
+    if(state.showRoute&&entry&&entry.door){
+      const dw=Math.min(entry.doorWidth||3,(entry.doorSide==='east'||entry.doorSide==='west'?entry.h:entry.w)),off=Math.max(0,Math.min(1,Number(entry.doorOffset)||0.5));
+      let ex=p+(entry.x+(entry.doorSide==='east'?entry.w:entry.doorSide==='west'?0:entry.w*off))*s;
+      let ey=p+(entry.y+(entry.doorSide==='south'?entry.h:entry.doorSide==='north'?0:entry.h*off))*s;
+      if(entry.doorSide==='north'||entry.doorSide==='south')ex=p+(entry.x+entry.w*off)*s;
+      if(state.entranceSide==='south')out+='<path d="M '+(p+w/2)+' '+(p+h+24)+' L '+(p+w/2)+' '+(ey+18)+' L '+ex+' '+ey+'" fill="none" stroke="#48d6a5" stroke-width="'+Math.max(3,state.routeWidth*s*.35)+'" stroke-dasharray="8 5"/>';
+      if(state.entranceSide==='north')out+='<path d="M '+(p+w/2)+' '+(p-24)+' L '+(p+w/2)+' '+(ey-18)+' L '+ex+' '+ey+'" fill="none" stroke="#48d6a5" stroke-width="'+Math.max(3,state.routeWidth*s*.35)+'" stroke-dasharray="8 5"/>';
+      if(state.entranceSide==='west')out+='<path d="M '+(p-24)+' '+(p+h/2)+' L '+(ex-18)+' '+(p+h/2)+' L '+ex+' '+ey+'" fill="none" stroke="#48d6a5" stroke-width="'+Math.max(3,state.routeWidth*s*.35)+'" stroke-dasharray="8 5"/>';
+      if(state.entranceSide==='east')out+='<path d="M '+(p+w+24)+' '+(p+h/2)+' L '+(ex+18)+' '+(p+h/2)+' L '+ex+' '+ey+'" fill="none" stroke="#48d6a5" stroke-width="'+Math.max(3,state.routeWidth*s*.35)+'" stroke-dasharray="8 5"/>';
+      out+='<text x="'+(p+w/2)+'" y="'+(state.entranceSide==='south'?p+h+16:state.entranceSide==='north'?p-29:p+h/2-8)+'" text-anchor="middle" fill="#48d6a5" font-size="11">MAIN ENTRY / ACCESS PATH</text>';
+    }
+    out += '<text x="'+p+'" y="'+(p+h+43)+'" fill="#91a7c2" font-size="11">Concept plan • dimensions in feet • door swing shown in amber • windows in cyan</text>';
     svg.innerHTML=out;
     svg.querySelectorAll('[data-room]').forEach(g=>g.addEventListener('click',()=>{state.selected=Number(g.getAttribute('data-room'));render();}));
   }
@@ -193,19 +229,27 @@
       '<div class="row"><div><label>Room depth (ft)</label><input id="fpRoomH" type="number" min="1" step=".5" value="'+r.h+'"></div><div><label>Position X / Y (ft)</label><div class="row"><input aria-label="Position X" id="fpX" type="number" min="0" step=".5" value="'+r.x+'"><input aria-label="Position Y" id="fpY" type="number" min="0" step=".5" value="'+r.y+'"></div></div></div>'+
       '<div class="row"><label class="fp-check"><input id="fpDoor" type="checkbox" '+(r.door?'checked':'')+'> Show door opening</label><label class="fp-check"><input id="fpWindow" type="checkbox" '+(r.window?'checked':'')+'> Show window opening</label></div>'+
       '<div class="row"><div><label>Door width (ft)</label><input id="fpDoorW" type="number" min="1" step="0.5" value="'+(r.doorWidth||3)+'"></div><div><label>Window width (ft)</label><input id="fpWindowW" type="number" min="1" step="0.5" value="'+(r.windowWidth||4)+'"></div></div>'+
-      '<button type="button" class="fp-danger" id="fpDelete">Delete selected room</button>';
+      '<div class="row"><div><label>Door on which wall?</label><select id="fpDoorSide"><option value="north" '+((r.doorSide||'south')==='north'?'selected':'')+'>North / top</option><option value="south" '+((r.doorSide||'south')==='south'?'selected':'')+'>South / bottom</option><option value="east" '+((r.doorSide||'south')==='east'?'selected':'')+'>East / right</option><option value="west" '+((r.doorSide||'south')==='west'?'selected':'')+'>West / left</option></select></div><div><label>Window on which wall?</label><select id="fpWindowSide"><option value="north" '+((r.windowSide||'north')==='north'?'selected':'')+'>North / top</option><option value="south" '+((r.windowSide||'north')==='south'?'selected':'')+'>South / bottom</option><option value="east" '+((r.windowSide||'north')==='east'?'selected':'')+'>East / right</option><option value="west" '+((r.windowSide||'north')==='west'?'selected':'')+'>West / left</option></select></div></div><div class="row"><div><label>Door swing</label><select id="fpDoorSwing"><option value="in" '+((r.doorSwing||'in')==='in'?'selected':'')+'>Opens inward</option><option value="out" '+(r.doorSwing==='out'?'selected':'')+'>Opens outward</option></select></div><div><label>Door position along wall (0–1)</label><input id="fpDoorOffset" type="number" min="0" max="1" step=".05" value="'+(r.doorOffset===undefined?0.5:r.doorOffset)+'"></div></div><button type="button" class="fp-danger" id="fpDelete">Delete selected room</button>';
     $('fpName').addEventListener('change',e=>update('name',e.target.value));
     [['fpRoomW','w'],['fpRoomH','h'],['fpX','x'],['fpY','y']].forEach(pair=>$(pair[0]).addEventListener('change',e=>update(pair[1],e.target.value)));
     $('fpDoor').addEventListener('change',e=>update('door',e.target.checked));
     $('fpWindow').addEventListener('change',e=>update('window',e.target.checked));
     $('fpDoorW').addEventListener('change',e=>update('doorWidth',e.target.value));
+    $('fpDoorSide').addEventListener('change',e=>update('doorSide',e.target.value));
+    $('fpWindowSide').addEventListener('change',e=>update('windowSide',e.target.value));
+    $('fpDoorSwing').addEventListener('change',e=>update('doorSwing',e.target.value));
+    $('fpDoorOffset').addEventListener('change',e=>{r.doorOffset=Math.max(0,Math.min(1,Number(e.target.value)||0));render();});
     $('fpWindowW').addEventListener('change',e=>update('windowWidth',e.target.value));
-    $('fpDelete').addEventListener('click',()=>{state.rooms=state.rooms.filter(x=>x.id!==state.selected);state.selected=state.rooms[0]?state.rooms[0].id:null;render();});
+    $('fpDelete').addEventListener('click',()=>{state.rooms=state.rooms.filter(x=>x.id!==state.selected);state.selected=state.rooms[0]?state.rooms[0].id:null;if(state.entranceRoom===Number(state.selected))state.entranceRoom=state.selected;render();});
   }
   function render() {
     $('fpSiteW').value=state.width; $('fpSiteH').value=state.height;
     if($('fpWallThickness')) $('fpWallThickness').value=state.wallThickness;
     draw(); roomList(); inspector();
+    const entrySelect=$('fpEntryRoom'); if(entrySelect){entrySelect.innerHTML=state.rooms.map(r=>'<option value="'+r.id+'" '+(r.id===state.entranceRoom?'selected':'')+'>'+esc(r.name)+' #'+r.id+'</option>').join('');entrySelect.disabled=!state.rooms.length;}
+    if($('fpEntranceSide'))$('fpEntranceSide').value=state.entranceSide;
+    if($('fpRouteWidth'))$('fpRouteWidth').value=state.routeWidth;
+    if($('fpShowRoute'))$('fpShowRoute').checked=state.showRoute;
     const collisions=[];
     state.rooms.forEach((a,i)=>state.rooms.slice(i+1).forEach(b=>{if(overlap(a,b))collisions.push(a.name+' and '+b.name);}));
     $('fpWarnings').innerHTML=collisions.length?'<div class="result warn"><b>Layout warning:</b> Overlapping rooms: '+collisions.map(esc).join(', ')+'. Move them apart.</div>':'<div class="result">No room overlaps detected by this basic 2D check.</div>';
@@ -288,6 +332,10 @@
     $('fpGeminiKeySave').addEventListener('click',()=>{geminiKey=$('fpGeminiKey').value.trim();$('fpGeminiKeyStatus').textContent=geminiKey?'Key ready for this browser tab only.':'Enter a valid API key.';});
     $('fpGeminiKeyClear').addEventListener('click',()=>{geminiKey='';$('fpGeminiKey').value='';$('fpGeminiKeyStatus').textContent='API key cleared from this page.';});
     $('fpWallThickness').addEventListener('change',e=>update('wallThickness',e.target.value));
+    if($('fpEntryRoom'))$('fpEntryRoom').addEventListener('change',e=>update('entranceRoom',e.target.value));
+    if($('fpEntranceSide'))$('fpEntranceSide').addEventListener('change',e=>update('entranceSide',e.target.value));
+    if($('fpRouteWidth'))$('fpRouteWidth').addEventListener('change',e=>update('routeWidth',e.target.value));
+    if($('fpShowRoute'))$('fpShowRoute').addEventListener('change',e=>update('showRoute',e.target.checked));
     $('fpSiteApply').addEventListener('click',()=>{
       const w=Number($('fpSiteW').value),h=Number($('fpSiteH').value);
       if(!(w>=5&&h>=5&&w<=200&&h<=200)){$('fpWarnings').innerHTML='<div class="result warn">Site dimensions must be between 5 and 200 feet.</div>';return;}
@@ -300,7 +348,7 @@
     $('fpExportJson').addEventListener('click',exportJson);
     $('fpReset').addEventListener('click',()=>{
       if(!confirm('Start a new blank plan? This clears the saved plan on this device.'))return;
-      state.rooms=[];state.selected=null;nextId=1;render();
+      state.rooms=[];state.selected=null;state.entranceRoom=null;nextId=1;render();
     });
     render(); if(!state.rooms.length){addRoom('Lounge');addRoom('Bedroom');addRoom('Kitchen');addRoom('Bathroom');}
   }
