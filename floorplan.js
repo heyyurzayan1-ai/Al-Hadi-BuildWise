@@ -321,89 +321,84 @@
     const data={app:'Al Hadi BuildWise',formatVersion:3,units:'feet',exportedAt:new Date().toISOString(),site:{width:state.width,height:state.height,wallThickness:state.wallThickness,entranceSide:state.entranceSide,entranceRoom:state.entranceRoom,routeWidth:state.routeWidth},rooms:state.rooms,documentation:{note:'Concept specifications only; verify with licensed professionals.'}};
     downloadFile('Al-Hadi-BuildWise-Project.json',JSON.stringify(data,null,2),'application/json;charset=utf-8');
   }
+  function buildWallTopology(){
+    const edges=[];
+    state.rooms.forEach(r=>{
+      const t=Math.max(.1,Math.min(Number(state.wallThickness)||.5,Math.min(r.w,r.h)/2));
+      [['north',r.x,r.y,r.x+r.w,r.y],['south',r.x,r.y+r.h,r.x+r.w,r.y+r.h],['west',r.x,r.y,r.x,r.y+r.h],['east',r.x+r.w,r.y,r.x+r.w,r.y+r.h]].forEach(e=>{
+        const side=e[0],horizontal=side==='north'||side==='south',a=horizontal?e[1]:e[2],b=horizontal?e[3]:e[4],fixed=horizontal?e[2]:e[1];
+        const length=b-a,doorSide=r.doorSide||'south',windowSide=r.windowSide||'north',cuts=[];
+        if(r.door&&doorSide===side){const width=Math.min(Number(r.doorWidth)||3,length),off=Math.max(0,Math.min(1,Number(r.doorOffset)||.5))*(length-width);cuts.push([a+off,a+off+width,'door',r]);}
+        if(r.window&&windowSide===side){const width=Math.min(Number(r.windowWidth)||4,length),off=(length-width)/2;cuts.push([a+off,a+off+width,'window',r]);}
+        edges.push({axis:horizontal?'h':'v',fixed,a,b,room:r,side,t,cuts});
+      });
+    });
+    const groups={};
+    edges.forEach(e=>{const k=e.axis+':'+e.fixed.toFixed(4);(groups[k]||(groups[k]=[])).push(e);});
+    const walls=[],openings=[];
+    Object.keys(groups).forEach(k=>{
+      const es=groups[k],points=[...new Set(es.flatMap(e=>[e.a,e.b,...e.cuts.flatMap(c=>c.slice(0,2))]))].sort((a,b)=>a-b);
+      for(let i=0;i<points.length-1;i++){
+        const a=points[i],b=points[i+1];if(b-a<.001)continue;const mid=(a+b)/2,cover=es.filter(e=>mid>e.a-.001&&mid<e.b+.001);if(!cover.length)continue;
+        const cut=cover.flatMap(e=>e.cuts.filter(c=>mid>c[0]-.001&&mid<c[1]+.001));
+        const base=cover[0],axis=base.axis,fixed=base.fixed;
+        const push=(lo,hi,layer)=>{if(hi-lo<.001)return;walls.push({axis,fixed,a:lo,b:hi,layer,thickness:Math.max(...cover.map(e=>e.t)),rooms:cover.map(e=>e.room.id)});};
+        if(cut.length){const typ=cut[0][2];openings.push({axis,fixed,a,b,type:typ,room:cut[0][3],side:base.side});}
+        else push(a,b,cover.length>1?'WALL-SHARED':'WALL-EXTERNAL');
+      }
+    });
+    return {walls,openings};
+  }
   function exportDxf() {
-    // DXF R12-compatible geometry, in feet, separated into editable CAD layers.
-    let d='0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n2\n9\n$LUNITS\n70\n2\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n10\n';
-    [['SITE',7],['WALL-OUTER',7],['WALL-INNER',8],['DOORS',3],['WINDOWS',4],['FURNITURE',6],['FIXTURES',5],['ROOM-TAGS',2],['DIMENSIONS',1],['ANNOTATIONS',7]].forEach(v=>{d+='0\nLAYER\n2\n'+v[0]+'\n70\n0\n62\n'+v[1]+'\n6\nCONTINUOUS\n';});
-    d+='0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n';
-    function line(x1,y1,x2,y2,layer){d+='0\nLINE\n8\n'+layer+'\n10\n'+x1+'\n20\n'+y1+'\n30\n0\n11\n'+x2+'\n21\n'+y2+'\n31\n0\n';}
-    function txt(x,y,v,size,layer){d+='0\nTEXT\n8\n'+layer+'\n10\n'+x+'\n20\n'+y+'\n30\n0\n40\n'+size+'\n1\n'+String(v).replace(/[\r\n]/g,' ')+'\n';}
+    const topo=buildWallTopology();
+    let d='0\\nSECTION\\n2\\nHEADER\\n9\\n$INSUNITS\\n70\\n2\\n9\\n$LUNITS\\n70\\n2\\n0\\nENDSEC\\n0\\nSECTION\\n2\\nTABLES\\n0\\nTABLE\\n2\\nLAYER\\n70\\n12\\n';
+    [['SITE',7],['WALL-EXTERNAL',7],['WALL-SHARED',8],['WALL-FACES',8],['DOORS',3],['WINDOWS',4],['FURNITURE',6],['FIXTURES',5],['ROOM-TAGS',2],['DIMENSIONS',1],['ANNOTATIONS',7],['GRID',9]].forEach(v=>{d+='0\\nLAYER\\n2\\n'+v[0]+'\\n70\\n0\\n62\\n'+v[1]+'\\n6\\nCONTINUOUS\\n';});
+    d+='0\\nENDTAB\\n0\\nENDSEC\\n0\\nSECTION\\n2\\nENTITIES\\n';
+    function line(x1,y1,x2,y2,layer){d+='0\\nLINE\\n8\\n'+layer+'\\n10\\n'+x1+'\\n20\\n'+y1+'\\n30\\n0\\n11\\n'+x2+'\\n21\\n'+y2+'\\n31\\n0\\n';}
+    function txt(x,y,v,size,layer){d+='0\\nTEXT\\n8\\n'+layer+'\\n10\\n'+x+'\\n20\\n'+y+'\\n30\\n0\\n40\\n'+size+'\\n1\\n'+String(v).replace(/[\\r\\n]/g,' ')+'\\n';}
     function rect(x,y,w,h,layer){line(x,y,x+w,y,layer);line(x+w,y,x+w,y+h,layer);line(x+w,y+h,x,y+h,layer);line(x,y+h,x,y,layer);}
-    function circle(x,y,r,layer){d+='0\nCIRCLE\n8\n'+layer+'\n10\n'+x+'\n20\n'+y+'\n30\n0\n40\n'+r+'\n';}
+    function circle(x,y,r,layer){d+='0\\nCIRCLE\\n8\\n'+layer+'\\n10\\n'+x+'\\n20\\n'+y+'\\n30\\n0\\n40\\n'+r+'\\n';}
     function dimH(x1,x2,y,label){line(x1,y,x2,y,'DIMENSIONS');line(x1,y-.12,x1,y+.12,'DIMENSIONS');line(x2,y-.12,x2,y+.12,'DIMENSIONS');txt((x1+x2)/2-.35,y+.18,label,.28,'DIMENSIONS');}
     function dimV(y1,y2,x,label){line(x,y1,x,y2,'DIMENSIONS');line(x-.12,y1,x+.12,y1,'DIMENSIONS');line(x-.12,y2,x+.12,y2,'DIMENSIONS');txt(x+.18,(y1+y2)/2,label,.28,'DIMENSIONS');}
-    function opening(r,side,isDoor){
-      const vertical=side==='east'||side==='west',length=vertical?r.h:r.w;
-      const width=Math.min(Number(isDoor?r.doorWidth:r.windowWidth)|| (isDoor?3:4),length);
-      const offset=isDoor?Math.max(0,Math.min(1,Number(r.doorOffset)||.5))*(length-width):(length-width)/2;
-      let x1,y1,x2,y2;
-      if(side==='north'){x1=r.x+offset;y1=r.y;x2=x1+width;y2=y1;}
-      if(side==='south'){x1=r.x+offset;y1=r.y+r.h;x2=x1+width;y2=y1;}
-      if(side==='west'){x1=r.x;y1=r.y+offset;x2=x1;y2=y1+width;}
-      if(side==='east'){x1=r.x+r.w;y1=r.y+offset;x2=x1;y2=y1+width;}
-      line(x1,y1,x2,y2,isDoor?'DOORS':'WINDOWS');
-      if(isDoor){
-        const radius=width*.95,dir=(side==='south'||side==='east')?-1:1;
-        if(side==='north'||side==='south'){line(x1,y1,x1,y1+dir*radius,'DOORS');}
-        else {line(x1,y1,x1+dir*radius,y1,'DOORS');}
-        txt((x1+x2)/2,(y1+y2)/2+.18,'D '+width.toFixed(1)+"'",.22,'ANNOTATIONS');
-      } else {
-        const off=.10;
-        if(side==='north'||side==='south')line(x1,y1+(side==='north'?off:-off),x2,y2+(side==='north'?off:-off),'WINDOWS');
-        else line(x1+(side==='west'?off:-off),y1,x2+(side==='west'?off:-off),y2,'WINDOWS');
-        txt((x1+x2)/2,(y1+y2)/2+.16,'W '+width.toFixed(1)+"'",.2,'ANNOTATIONS');
-      }
-    }
-    function furniture(r){
-      const n=r.name.toLowerCase(),x=r.x,y=r.y,w=r.w,h=r.h;
-      if(n.includes('bedroom')){
-        const bw=Math.min(w*.48,5.5),bh=Math.min(h*.55,6.5),bx=x+w*.1,by=y+h*.18;
-        rect(bx,by,bw,bh,'FURNITURE');rect(bx+.12,by+.12,bw*.43,bh*.18,'FURNITURE');rect(bx+bw*.55,by+.12,bw*.43,bh*.18,'FURNITURE');
-        rect(x+w*.68,y+h*.2,Math.min(w*.2,2),Math.min(h*.42,4),'FURNITURE');
-      } else if(n.includes('bath')){
-        rect(x+w*.1,y+h*.1,Math.min(w*.38,2.8),Math.min(h*.24,1.6),'FIXTURES');
-        circle(x+w*.72,y+h*.28,Math.min(w*.1,.65),'FIXTURES');rect(x+w*.12,y+h*.62,Math.min(w*.25,1.5),Math.min(h*.18,1),'FIXTURES');
-      } else if(n.includes('kitchen')){
-        rect(x+w*.08,y+h*.08,w*.84,Math.min(.8,h*.14),'FURNITURE');rect(x+w*.08,y+h*.08,Math.min(.8,w*.14),h*.78,'FURNITURE');
-        circle(x+w*.72,y+h*.15,.18,'FIXTURES');circle(x+w*.82,y+h*.15,.18,'FIXTURES');rect(x+w*.35,y+h*.58,w*.3,h*.18,'FURNITURE');
-      } else if(n.includes('lounge')||n.includes('drawing')||n.includes('living')){
-        rect(x+w*.2,y+h*.12,w*.6,1.5,'FURNITURE');rect(x+w*.08,y+h*.38,1.5,Math.min(h*.35,4),'FURNITURE');rect(x+w*.78,y+h*.38,1.2,Math.min(h*.35,4),'FURNITURE');rect(x+w*.38,y+h*.62,w*.24,.9,'FURNITURE');
-      } else if(n.includes('dining')){
-        rect(x+w*.28,y+h*.3,w*.44,h*.35,'FURNITURE');[[.2,.3],[.8,.3],[.2,.68],[.8,.68]].forEach(p=>rect(x+w*p[0]-.35,y+h*p[1]-.35,.7,.7,'FURNITURE'));
-      } else if(n.includes('garage')||n.includes('porch')){
-        rect(x+w*.28,y+h*.12,w*.44,h*.76,'FURNITURE');rect(x+w*.34,y+h*.23,w*.32,h*.2,'FURNITURE');rect(x+w*.34,y+h*.58,w*.32,h*.16,'FURNITURE');
-      } else if(n.includes('stair')){
-        for(let k=0;k<=8;k++)line(x+w*.2+k*w*.6/8,y+h*.2,x+w*.2+k*w*.6/8,y+h*.8,'FURNITURE');
-        txt(x+w*.43,y+h*.52,'UP',.35,'ANNOTATIONS');
-      }
-    }
-    // Site boundary and external dimensions.
-    rect(0,0,state.width,state.height,'SITE');dimH(0,state.width,-1.25,state.width+"'-0\"");dimV(0,state.height,state.width+1.25,state.height+"'-0\"");
-    state.rooms.forEach(r=>{
-      const t=Math.min(state.wallThickness,Math.min(r.w,r.h)/2);
-      // Room perimeter as paired wall-face lines; rooms remain separate BIM spaces.
-      line(r.x,r.y,r.x+r.w,r.y,'WALL-OUTER');line(r.x,r.y+t,r.x+r.w,r.y+t,'WALL-INNER');
-      line(r.x,r.y+r.h,r.x+r.w,r.y+r.h,'WALL-OUTER');line(r.x,r.y+r.h-t,r.x+r.w,r.y+r.h-t,'WALL-INNER');
-      line(r.x,r.y,r.x,r.y+r.h,'WALL-OUTER');line(r.x+t,r.y,r.x+t,r.y+r.h,'WALL-INNER');
-      line(r.x+r.w,r.y,r.x+r.w,r.y+r.h,'WALL-OUTER');line(r.x+r.w-t,r.y,r.x+r.w-t,r.y+r.h,'WALL-INNER');
-      if(r.door)opening(r,r.doorSide||'south',true);
-      if(r.window)opening(r,r.windowSide||'north',false);
-      furniture(r);
-      txt(r.x+r.w*.3,r.y+r.h*.52,r.name.toUpperCase(),.38,'ROOM-TAGS');
-      txt(r.x+r.w*.3,r.y+r.h*.52-.48,r.w.toFixed(1)+"' x "+r.h.toFixed(1)+"'",.28,'ROOM-TAGS');
-      dimH(r.x,r.x+r.w,r.y-.55,r.w.toFixed(1)+"'");
-      dimV(r.y,r.y+r.h,r.x+r.w+.55,r.h.toFixed(1)+"'");
+    rect(0,0,state.width,state.height,'SITE');dimH(0,state.width,-1.25,state.width+"'-0\\"");dimV(0,state.height,state.width+1.25,state.height+"'-0\\"");
+    topo.walls.forEach(w=>{
+      const t=w.thickness/2,lay=w.layer;
+      if(w.axis==='h'){line(w.a,w.fixed-t,w.b,w.fixed-t,lay);line(w.a,w.fixed+t,w.b,w.fixed+t,lay);}
+      else{line(w.fixed-t,w.a,w.fixed-t,w.b,lay);line(w.fixed+t,w.a,w.fixed+t,w.b,lay);}
     });
-    txt(0,-2.2,'AL HADI BUILDWISE | DXF FEET | WALL THICKNESS '+state.wallThickness+"'",.35,'ANNOTATIONS');
-    txt(0,-2.75,'ROOM SPACES ARE SEPARATE RECTANGLES; VERIFY SHARED WALLS AND OPENINGS BEFORE CONSTRUCTION',.22,'ANNOTATIONS');
-    d+='0\nENDSEC\n0\nEOF\n';
-    downloadFile('Al-Hadi-BuildWise-Architectural-CAD.dxf',d,'application/dxf');
+    topo.openings.forEach(o=>{
+      const r=o.room,mid=(o.a+o.b)/2,len=o.b-o.a;
+      if(o.type==='door'){
+        if(o.axis==='h'){const hinge=o.side==='north'?o.fixed:o.fixed;line(o.a,o.fixed,o.a,o.fixed+(o.side==='north'?len:-len),'DOORS');line(o.a,o.fixed,o.b,o.fixed,'DOORS');}
+        else{line(o.fixed,o.a,o.fixed+(o.side==='west'?len:-len),o.a,'DOORS');line(o.fixed,o.a,o.fixed,o.b,'DOORS');}
+        txt(o.axis==='h'?mid:o.fixed+.12,o.axis==='h'?o.fixed+.18:mid,'D '+len.toFixed(1)+"'",.22,'ANNOTATIONS');
+      }else{
+        if(o.axis==='h'){line(o.a,o.fixed-.08,o.b,o.fixed-.08,'WINDOWS');line(o.a,o.fixed+.08,o.b,o.fixed+.08,'WINDOWS');}
+        else{line(o.fixed-.08,o.a,o.fixed-.08,o.b,'WINDOWS');line(o.fixed+.08,o.a,o.fixed+.08,o.b,'WINDOWS');}
+      }
+    });
+    state.rooms.forEach(r=>{
+      const x=r.x,y=r.y,w=r.w,h=r.h,n=r.name.toLowerCase();
+      txt(x+w*.28,y+h*.52,r.name.toUpperCase(),.38,'ROOM-TAGS');txt(x+w*.28,y+h*.52-.48,w.toFixed(1)+"' x "+h.toFixed(1)+"'",.28,'ROOM-TAGS');
+      dimH(x,x+w,y-.55,w.toFixed(1)+"'");dimV(y,y+h,x+w+.55,h.toFixed(1)+"'");
+      if(n.includes('bedroom')){const bx=x+w*.1,by=y+h*.18,bw=Math.min(w*.48,5.5),bh=Math.min(h*.55,6.5);rect(bx,by,bw,bh,'FURNITURE');rect(bx+.12,by+.12,bw*.43,bh*.18,'FURNITURE');rect(bx+bw*.55,by+.12,bw*.43,bh*.18,'FURNITURE');}
+      else if(n.includes('bath')){rect(x+w*.1,y+h*.1,Math.min(w*.38,2.8),Math.min(h*.24,1.6),'FIXTURES');circle(x+w*.72,y+h*.28,Math.min(w*.1,.65),'FIXTURES');circle(x+w*.24,y+h*.71,.35,'FIXTURES');}
+      else if(n.includes('kitchen')){rect(x+w*.08,y+h*.08,w*.84,.8,'FURNITURE');rect(x+w*.08,y+h*.08,.8,h*.78,'FURNITURE');circle(x+w*.72,y+h*.15,.18,'FIXTURES');circle(x+w*.82,y+h*.15,.18,'FIXTURES');}
+      else if(n.includes('lounge')||n.includes('drawing')||n.includes('living')){rect(x+w*.2,y+h*.12,w*.6,1.5,'FURNITURE');rect(x+w*.08,y+h*.38,1.5,Math.min(h*.35,4),'FURNITURE');rect(x+w*.78,y+h*.38,1.2,Math.min(h*.35,4),'FURNITURE');rect(x+w*.38,y+h*.62,w*.24,.9,'FURNITURE');}
+      else if(n.includes('dining')){rect(x+w*.28,y+h*.3,w*.44,h*.35,'FURNITURE');}
+      else if(n.includes('stair')){for(let k=0;k<=8;k++)line(x+w*.2+k*w*.6/8,y+h*.2,x+w*.2+k*w*.6/8,y+h*.8,'FURNITURE');txt(x+w*.43,y+h*.52,'UP',.35,'ANNOTATIONS');}
+      else if(n.includes('garage')||n.includes('porch')){rect(x+w*.28,y+h*.12,w*.44,h*.76,'FURNITURE');rect(x+w*.34,y+h*.23,w*.32,h*.2,'FURNITURE');}
+    });
+    txt(0,-2.2,'AL HADI BUILDWISE | SHARED-WALL AWARE CAD DXF | UNITS: FEET',.35,'ANNOTATIONS');
+    txt(0,-2.75,'Concept drawing only - verify dimensions, wall joins and openings before construction',.22,'ANNOTATIONS');
+    d+='0\\nENDSEC\\n0\\nEOF\\n';
+    downloadFile('Al-Hadi-BuildWise-Shared-Wall-CAD.dxf',d,'application/dxf');
   }
   function exportBim() {
-    const project={
+    const topology=buildWallTopology();\n    const project={
       schema:'AlHadiBuildWise-BIM-1.0',schemaIntent:'OpenBIM-ready conceptual exchange data; not an IFC-certified model',
       project:{name:'Al Hadi BuildWise Project',units:'FEET',createdAt:new Date().toISOString()},
-      site:{width:state.width,depth:state.height,area:state.width*state.height,wallThickness:state.wallThickness,entranceSide:state.entranceSide},
+      site:{width:state.width,depth:state.height,area:state.width*state.height,wallThickness:state.wallThickness,entranceSide:state.entranceSide},\n      buildingElements:{walls:topology.walls.map((w,i)=>({globalId:'AHB-WALL-'+(i+1),ifcType:'IfcWall',kind:w.layer==='WALL-SHARED'?'shared':'external',axis:w.axis,coordinate:w.fixed,start:w.a,end:w.b,thickness:w.thickness,boundingRooms:w.rooms})),openings:topology.openings.map((o,i)=>({globalId:'AHB-OPENING-'+(i+1),ifcType:o.type==='door'?'IfcDoor':'IfcWindow',kind:o.type,wallSide:o.side,axis:o.axis,coordinate:o.fixed,start:o.a,end:o.b,width:o.b-o.a,roomId:o.room.id}))},
       storeys:[{name:'Ground Floor',elevation:0,rooms:state.rooms.map(r=>({
         globalId:'AHB-SPACE-'+r.id,ifcType:'IfcSpace',name:r.name,objectType:'Room',
         placement:{x:r.x,y:r.y,z:0},dimensions:{width:r.w,depth:r.h,height:Number(r.ceilingHeight)||10},
@@ -414,7 +409,7 @@
         buildingServices:{lightingPoints:Number(r.lightingPoints)||0,socketPoints:Number(r.socketPoints)||0,switchPoints:Number(r.switchPoints)||0,plumbing:r.plumbing||'Unspecified',ventilation:r.ventilation||'Unspecified'},
         notes:r.notes||''
       }))}],
-      limitations:['Conceptual room solids only','No verified shared-wall topology','No structural members or load calculations','No code or permit validation','Not an IFC file']
+      limitations:['Conceptual BIM exchange JSON, not an IFC STEP file','Wall topology detects coincident collinear room boundaries; complex T/L junctions require review','No structural members or load calculations','No code or permit validation']
     };
     downloadFile('Al-Hadi-BuildWise-BIM-Data.json',JSON.stringify(project,null,2),'application/json;charset=utf-8');
   }
