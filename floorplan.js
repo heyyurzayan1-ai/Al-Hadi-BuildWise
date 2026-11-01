@@ -158,9 +158,14 @@
     else if (['floorFinish','wallFinish','ceilingFinish','ventilation','plumbing','notes'].includes(key)) r[key]=String(value).slice(0,300);
     else if (['ceilingHeight','lightingPoints','socketPoints','switchPoints'].includes(key)) { const n=Number(value);if(!Number.isFinite(n)||n<0)return;r[key]=Math.min(key==='ceilingHeight'?30:50,n); }
     else if (key === 'doorWidth' || key === 'windowWidth') { const n=Number(value); if(!Number.isFinite(n))return; r[key]=Math.max(1,Math.min(key==='doorWidth'?r.w:r.w,n)); }
-    else {
+    else if (['x','y','w','h'].includes(key)) {
       const n = Number(value); if (!Number.isFinite(n)) return;
-      r[key] = Math.max(0,Math.min(key==='w'?state.width:key==='h'?state.height:10000,n));
+      if (key === 'w') r.w = Math.max(1, Math.min(state.width - r.x, n));
+      else if (key === 'h') r.h = Math.max(1, Math.min(state.height - r.y, n));
+      else if (key === 'x') r.x = Math.max(0, Math.min(state.width - r.w, n));
+      else if (key === 'y') r.y = Math.max(0, Math.min(state.height - r.h, n));
+      r.doorWidth = Math.min(Number(r.doorWidth) || 3, (r.doorSide === 'east' || r.doorSide === 'west') ? r.h : r.w);
+      r.windowWidth = Math.min(Number(r.windowWidth) || 4, (r.windowSide === 'east' || r.windowSide === 'west') ? r.h : r.w);
     }
     render();
   }
@@ -287,6 +292,8 @@
     downloadFile('Al-Hadi-BuildWise-Project.json',JSON.stringify(data,null,2),'application/json;charset=utf-8');
   }
   function exportDxf() {
+    // Wall segments follow each room's selected door/window wall and offset.
+    // Coordinates are feet; room loops remain independent (not a joined BIM wall network).
     let d='0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n2\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n6\n';
     [['SITE',7],['WALLS',7],['OPENINGS',3],['DIMENSIONS',2],['LABELS',4],['PATH',3]].forEach(v=>{d+='0\nLAYER\n2\n'+v[0]+'\n70\n0\n62\n'+v[1]+'\n6\nCONTINUOUS\n';});
     d+='0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n';
@@ -300,37 +307,49 @@
       line(x,y1,x,y2,'DIMENSIONS');line(x-0.18,y1,x+0.18,y1,'DIMENSIONS');line(x-0.18,y2,x+0.18,y2,'DIMENSIONS');
       text(x+0.22,(y1+y2)/2,label,0.35,'DIMENSIONS');
     }
+    function wallEdge(r,side,opening){
+      const x=r.x,y=r.y,w=r.w,h=r.h,t=Math.min(state.wallThickness,Math.min(w,h)/2);
+      let x1,y1,x2,y2,nx,ny,length;
+      if(side==='north'){x1=x;y1=y;x2=x+w;y2=y;nx=0;ny=1;length=w;}
+      else if(side==='south'){x1=x;y1=y+h;x2=x+w;y2=y+h;nx=0;ny=-1;length=w;}
+      else if(side==='east'){x1=x+w;y1=y;x2=x+w;y2=y+h;nx=-1;ny=0;length=h;}
+      else {x1=x;y1=y;x2=x;y2=y+h;nx=1;ny=0;length=h;}
+      const width=opening?Math.min(Math.max(0,Number(opening.width)||0),length):0;
+      const offset=opening?Math.max(0,Math.min(1,Number(opening.offset)))*Math.max(0,length-width):0;
+      const a=offset,b=offset+width;
+      function segment(from,to,shift){
+        if(to-from<0.001)return;
+        line(x1+(x2-x1)*from/length+nx*shift,y1+(y2-y1)*from/length+ny*shift,
+             x1+(x2-x1)*to/length+nx*shift,y1+(y2-y1)*to/length+ny*shift,'WALLS');
+      }
+      segment(0,a,0);segment(b,length,0);
+      segment(0,a,t);segment(b,length,t);
+      if(opening&&width>0){
+        const ax=x1+(x2-x1)*a/length,ay=y1+(y2-y1)*a/length;
+        const bx=x1+(x2-x1)*b/length,by=y1+(y2-y1)*b/length;
+        line(ax,ay,ax+nx*t,ay+ny*t,'OPENINGS');
+        line(bx,by,bx+nx*t,by+ny*t,'OPENINGS');
+        text((ax+bx)/2+nx*(t+0.25),(ay+by)/2+ny*(t+0.25),opening.label+' '+width.toFixed(2)+' ft',0.28,'OPENINGS');
+      }
+    }
     line(0,0,state.width,0,'SITE');line(state.width,0,state.width,state.height,'SITE');
     line(state.width,state.height,0,state.height,'SITE');line(0,state.height,0,0,'SITE');
     dimensionH(0,state.width,-1.4,state.width+' ft');dimensionV(0,state.height,state.width+1.4,state.height+' ft');
-    const t=state.wallThickness;
     state.rooms.forEach(r=>{
-      const x=r.x,y=r.y,w=r.w,h=r.h,door=r.door?Math.min(r.doorWidth||3,w):0,win=r.window?Math.min(r.windowWidth||4,w):0;
-      const dx=x+(w-door)/2,wx=x+(w-win)/2;
-      // Each room exports paired wall-face lines. Door is centered on the lower wall; window on the upper wall.
-      const edges=[
-        [x,y,x+Math.max(0,(w-door)/2),y],[dx+door,y,x+w,y],
-        [x,y+h,x+Math.max(0,(w-win)/2),y+h],[wx+win,y+h,x+w,y+h],
-        [x,y,x,y+h],[x+w,y,x+w,y+h]
-      ];
-      edges.forEach(e=>{line(e[0],e[1],e[2],e[3],'WALLS');});
-      const inner=[
-        [x+t,y+t,x+t+Math.max(0,(w-door)/2),y+t],
-        [dx+door,y+t,x+w-t,y+t],
-        [x+t,y+h-t,x+t+Math.max(0,(w-win)/2),y+h-t],
-        [wx+win,y+h-t,x+w-t,y+h-t],
-        [x+t,y+t,x+t,y+h-t],[x+w-t,y+t,x+w-t,y+h-t]
-      ];
-      inner.forEach(e=>line(e[0],e[1],e[2],e[3],'WALLS'));
-      if(door>0){line(dx,y,dx,y+Math.min(door,2.5),'OPENINGS');line(dx+door,y,dx+door,y+Math.min(door,2.5),'OPENINGS');text(dx,y-0.65,'DOOR '+door+' ft',0.3,'OPENINGS');}
-      if(win>0){line(wx,y+h,wx,y+h-0.35,'OPENINGS');line(wx+win,y+h,wx+win,y+h-0.35,'OPENINGS');text(wx,y+h+0.45,'WINDOW '+win+' ft',0.3,'OPENINGS');}
-      text(x+w/2-1,y+h/2,r.name,0.45,'LABELS');
-      dimensionH(x,x+w,y-0.75,w+' ft');
-      dimensionV(y,y+h,x+w+0.75,h+' ft');
+      const doorVertical=r.doorSide==='east'||r.doorSide==='west';
+      const windowVertical=r.windowSide==='east'||r.windowSide==='west';
+      const doorOpening=r.door?{width:Math.min(Number(r.doorWidth)||3,doorVertical?r.h:r.w),offset:Number.isFinite(Number(r.doorOffset))?Number(r.doorOffset):0.5,label:'DOOR'}:null;
+      const windowOpening=r.window?{width:Math.min(Number(r.windowWidth)||4,windowVertical?r.h:r.w),offset:0.5,label:'WINDOW'}:null;
+      ['north','south','east','west'].forEach(side=>{
+        wallEdge(r,side,r.door&&r.doorSide===side?doorOpening:r.window&&r.windowSide===side?windowOpening:null);
+      });
+      text(r.x+r.w/2-1,r.y+r.h/2,r.name,0.45,'LABELS');
+      dimensionH(r.x,r.x+r.w,r.y-0.75,r.w+' ft');
+      dimensionV(r.y,r.y+r.h,r.x+r.w+0.75,r.h+' ft');
     });
-    text(0,-2.4,'AL HADI BUILDWISE | UNITS: FEET | WALL THICKNESS: '+t+' ft',0.4,'LABELS');
+    text(0,-2.4,'AL HADI BUILDWISE | FEET | WALL THICKNESS '+state.wallThickness+' ft',0.4,'LABELS');
     d+='0\nENDSEC\n0\nEOF\n';
-    downloadFile('Al-Hadi-BuildWise-Advanced-Floor-Plan.dxf',d,'application/dxf');
+    downloadFile('Al-Hadi-BuildWise-Wall-Plan.dxf',d,'application/dxf');
   }
   function exportPdf() {
     const svg=$('fpDrawing').cloneNode(true);svg.setAttribute('xmlns','http://www.w3.org/2000/svg');
