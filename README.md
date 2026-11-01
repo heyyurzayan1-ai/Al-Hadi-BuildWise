@@ -24,3 +24,15 @@ This is a concept-planning prototype, not professional CAD/BIM software. It does
 4. Add versioned projects and secure cloud storage.
 5. Add sourced, date-stamped Pakistan material-rate data and transparent quantity estimation.
 6. Add AI assistance only with clear input provenance, uncertainty and professional review gates.
+
+
+## Detailed room documentation (v11)
+- Per-room ceiling height, floor finish, wall finish, ceiling finish and notes.
+- Door and window widths, wall side, swing and door position controls.
+- Per-room indicative lighting, socket and switch point counts.
+- Ventilation and sanitary/plumbing provision fields.
+- Live room schedule with area, finishes, openings and service placeholders.
+- PDF room schedule includes the same room specification fields.
+- Project JSON format version 3 retains room specification data.
+
+These are design-intent fields and coordination placeholders. They do not calculate electrical loads, circuit sizing, pipe gradients, ventilation rates, fire egress or structural capacity.
