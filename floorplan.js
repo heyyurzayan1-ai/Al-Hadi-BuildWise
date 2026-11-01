@@ -36,6 +36,58 @@
     const r = {id:nextId++,name:name,x:x,y:y,w:w,h:h,door:true,window:true,doorWidth:3,windowWidth:4};
     state.rooms.push(r); state.selected = r.id; render();
   }
+  function generateFromBrief() {
+    const brief=(($('fpAiBrief')&&$('fpAiBrief').value)||'').toLowerCase();
+    const width=Number($('fpSiteW').value),height=Number($('fpSiteH').value);
+    if(!(width>=5&&height>=5&&width<=200&&height<=200)){
+      $('fpAiResult').innerHTML='<div class="result warn">Enter plot dimensions between 5 and 200 feet first.</div>';return;
+    }
+    state.width=width;state.height=height;
+    const specs=[
+      {name:'Bedroom',keys:['bedroom','bed room','bed'],fallback:2,size:[11,12]},
+      {name:'Master bedroom',keys:['master bedroom','master bed'],fallback:0,size:[13,14]},
+      {name:'Bathroom',keys:['bathroom','bath room','washroom','toilet'],fallback:1,size:[6,7]},
+      {name:'Kitchen',keys:['kitchen'],fallback:1,size:[9,10]},
+      {name:'Lounge',keys:['lounge','living room','living'],fallback:1,size:[12,13]},
+      {name:'Drawing room',keys:['drawing room','guest room'],fallback:0,size:[11,12]},
+      {name:'Dining room',keys:['dining'],fallback:0,size:[9,10]},
+      {name:'Garage',keys:['garage','car porch','car parking'],fallback:0,size:[10,16]},
+      {name:'Store',keys:['store','storage'],fallback:0,size:[5,6]}
+    ];
+    const names=[];
+    specs.forEach(spec=>{
+      const key=spec.keys.find(k=>brief.includes(k));
+      let count=0;
+      if(key){
+        const escaped=key.replace(/[.*+?^{}()|[\]\\]/g,'\\  function selected() { return state.rooms.find(r => r.id === state.selected) || null; }');
+        const match=brief.match(new RegExp('(?:^|\\\\b)(\\\\d+)\\\\s*(?:'+escaped+'s?)(?:\\\\b)'));
+        count=match?Math.min(6,Number(match[1])):1;
+      } else if(spec.fallback && !brief.trim()) count=spec.fallback;
+      else if(spec.fallback && (spec.name==='Bedroom'||spec.name==='Bathroom'||spec.name==='Kitchen'||spec.name==='Lounge')) {
+        const generic=brief.includes('house')||brief.includes('home')||brief.includes('family');
+        if(generic)count=spec.fallback;
+      }
+      for(let i=0;i<count;i++)names.push({name:spec.name,size:spec.size});
+    });
+    if(!names.length){
+      names.push({name:'Bedroom',size:[11,12]},{name:'Bedroom',size:[11,12]},{name:'Bathroom',size:[6,7]},{name:'Kitchen',size:[9,10]},{name:'Lounge',size:[12,13]});
+    }
+    if(names.length>16){$('fpAiResult').innerHTML='<div class="result warn">This first generator supports up to 16 spaces. Reduce the room count and try again.</div>';return;}
+    const cols=Math.ceil(Math.sqrt(names.length*width/height)),rows=Math.ceil(names.length/cols);
+    const cellW=width/cols,cellH=height/rows;
+    if(cellW<5||cellH<5){$('fpAiResult').innerHTML='<div class="result warn">The plot is too small for this many rooms. Increase plot size or reduce room count.</div>';return;}
+    state.rooms=names.map((item,index)=>{
+      const col=index%cols,row=Math.floor(index/cols);
+      const x=col*cellW,y=row*cellH;
+      const w=cellW,h=cellH;
+      return {id:nextId++,name:item.name,x:Number(x.toFixed(2)),y:Number(y.toFixed(2)),w:Number(w.toFixed(2)),h:Number(h.toFixed(2)),door:true,window:item.name!=='Bathroom',doorWidth:Math.min(3,w),windowWidth:Math.min(4,w)};
+    });
+    state.selected=state.rooms[0]?state.rooms[0].id:null;
+    render();
+    const area=state.rooms.reduce((sum,r)=>sum+r.w*r.h,0);
+    $('fpAiResult').innerHTML='<div class="result"><b>Concept plan generated.</b> '+state.rooms.length+' spaces arranged inside '+width+' × '+height+' ft plot. Approximate allocated area: '+area.toFixed(1)+' sq ft. Edit individual rooms below, then export PDF or DXF.</div><p class="fp-help">Generated from your written room requirements using an on-device layout rule engine. It is not a connected generative-AI model and does not verify circulation, setbacks, building codes, structure or site conditions.</p>';
+    $('fpDrawing').scrollIntoView({behavior:'smooth',block:'center'});
+  }
   function selected() { return state.rooms.find(r => r.id === state.selected) || null; }
   function update(key,value) {
     if (key === 'wallThickness') { const n=Number(value); if(!Number.isFinite(n))return; state.wallThickness=Math.max(0.1,Math.min(1.5,n)); render(); return; }
@@ -177,6 +229,7 @@
   function init() {
     if(!$('fpDrawing'))return; load();
     $('fpAddRoom').addEventListener('click',()=>addRoom($('fpRoomType').value));
+    $('fpAiGenerate').addEventListener('click',generateFromBrief);
     $('fpWallThickness').addEventListener('change',e=>update('wallThickness',e.target.value));
     $('fpSiteApply').addEventListener('click',()=>{
       const w=Number($('fpSiteW').value),h=Number($('fpSiteH').value);
